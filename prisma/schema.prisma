@@ -1,0 +1,164 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  HR
+  PA
+  BA
+  EMPLOYEE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ProjectStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+}
+
+model User {
+  id         String     @id @default(cuid())
+  name       String
+  email      String     @unique
+  password   String
+  role       Role       @default(EMPLOYEE)
+  status     UserStatus @default(ACTIVE)
+  department String?
+  phone      String?
+  avatar     String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  // Relations
+  assignedProjects Project[]      @relation("AssignedTo")
+  createdProjects  Project[]      @relation("CreatedBy")
+  dailyReports     DailyReport[]
+  attendances      Attendance[]
+  LeaveRequest     LeaveRequest[]
+  Notification     Notification[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  status      ProjectStatus @default(PENDING)
+  priority    String        @default("MEDIUM") // LOW, MEDIUM, HIGH
+  startDate   DateTime?
+  endDate     DateTime?
+  githubLink  String?
+  fileUrl     String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  assignedToId String?
+  assignedTo   User?         @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdById  String
+  createdBy    User          @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  dailyReports DailyReport[]
+
+  @@map("projects")
+}
+
+model DailyReport {
+  id          String   @id @default(cuid())
+  reportText  String
+  hoursWorked Float?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId, date])
+  @@map("daily_reports")
+}
+
+model Attendance {
+  id           String              @id @default(cuid())
+  date         DateTime            @db.Date
+  status       AttendanceStatus    @default(PRESENT)
+  totalHours   Float               @default(0) // Total cumulative hours for the day
+  notes        String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  // Relations
+  userId   String
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions AttendanceSession[] // Multiple check-in/check-out sessions per day
+
+  @@unique([userId, date], name: "userId_date")
+  @@map("attendances")
+}
+
+// Track individual login/logout sessions within a day
+model AttendanceSession {
+  id           String     @id @default(cuid())
+  checkIn      DateTime   // When employee logged in
+  checkOut     DateTime?  // When employee logged out (null if still logged in)
+  hoursWorked  Float      @default(0) // Hours for this specific session
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  attendanceId String
+  attendance   Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  @@map("attendance_sessions")
+}
+
+
+model LeaveRequest {
+  id        Int         @id @default(autoincrement())
+  userId    String
+  startDate DateTime
+  endDate   DateTime
+  reason    String
+  status    LeaveStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  user      User        @relation(fields: [userId], references: [id])
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
