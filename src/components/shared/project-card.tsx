@@ -41,9 +41,10 @@ interface ProjectCardProps {
     onEdit?: (project: Project) => void
     onDelete?: (project: Project) => void
     showActions?: boolean
+    isAllocationView?: boolean
 }
 
-export function ProjectCard({ project, onEdit, onDelete, showActions = true }: ProjectCardProps) {
+export function ProjectCard({ project, onEdit, onDelete, showActions = true, isAllocationView = false }: ProjectCardProps) {
     const progress = calculateProgress(
         project.startDate ? new Date(project.startDate) : null,
         project.endDate ? new Date(project.endDate) : null
@@ -58,7 +59,7 @@ export function ProjectCard({ project, onEdit, onDelete, showActions = true }: P
                 <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className={getStatusColor(project.status)}>
-                            {project.status.replace('_', ' ')}
+                            {project.status === 'IN_PROGRESS' ? 'Ongoing' : project.status.replace('_', ' ')}
                         </Badge>
                         <Badge variant="outline" className={getPriorityColor(project.priority)}>
                             {project.priority}
@@ -138,6 +139,20 @@ export function ProjectCard({ project, onEdit, onDelete, showActions = true }: P
                     </div>
                 )}
             </div>
+
+            {/* Allocate Button - Highlighted for Managers/Team Leaders */}
+            {showActions && onEdit && isAllocationView && (
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                    <Button
+                        onClick={() => onEdit(project)}
+                        className="w-full bg-[#13498a] hover:bg-[#13498a]/90 text-white gap-2"
+                        variant="default"
+                    >
+                        <ExternalLink className="h-4 w-4" />
+                        Allocate Project
+                    </Button>
+                </div>
+            )}
 
             {/* Links */}
             {project.githubLink && (

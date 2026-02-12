@@ -34,36 +34,38 @@ export function getInitials(name: string): string {
 
 export function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
-    PENDING: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-    IN_PROGRESS: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-    COMPLETED: 'bg-green-500/10 text-green-500 border-green-500/20',
-    PRESENT: 'bg-green-500/10 text-green-500 border-green-500/20',
-    ABSENT: 'bg-red-500/10 text-red-500 border-red-500/20',
-    LEAVE: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
-    ACTIVE: 'bg-green-500/10 text-green-500 border-green-500/20',
-    INACTIVE: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
+    PENDING: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+    IN_PROGRESS: 'bg-blue-500/10 text-[#13498a] border-[#13498a]/20',
+    COMPLETED: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+    PRESENT: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+    ABSENT: 'bg-[#b12024]/10 text-[#b12024] border-[#b12024]/20',
+    LEAVE: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+    ACTIVE: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+    INACTIVE: 'bg-slate-500/10 text-slate-500 border-slate-500/20',
   }
-  return colors[status] || 'bg-gray-500/10 text-gray-500 border-gray-500/20'
+  return colors[status] || 'bg-slate-500/10 text-slate-500 border-slate-500/20'
 }
 
 export function getPriorityColor(priority: string): string {
   const colors: Record<string, string> = {
     LOW: 'bg-slate-500/10 text-slate-500 border-slate-500/20',
-    MEDIUM: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-    HIGH: 'bg-red-500/10 text-red-500 border-red-500/20',
+    MEDIUM: 'bg-[#13498a]/10 text-[#13498a] border-[#13498a]/20',
+    HIGH: 'bg-[#b12024]/10 text-[#b12024] border-[#b12024]/20',
   }
-  return colors[priority] || 'bg-gray-500/10 text-gray-500 border-gray-500/20'
+  return colors[priority] || 'bg-slate-500/10 text-slate-500 border-slate-500/20'
 }
 
 export function getRoleColor(role: string): string {
   const colors: Record<string, string> = {
-    ADMIN: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
-    HR: 'bg-pink-500/10 text-pink-500 border-pink-500/20',
-    PA: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20',
-    BA: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20',
-    EMPLOYEE: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+    ADMIN: 'bg-[#b12024]/10 text-[#b12024] border-[#b12024]/20',
+    HR: 'bg-pink-500/10 text-pink-600 border-pink-500/20',
+    PA: 'bg-[#13498a]/10 text-[#13498a] border-[#13498a]/20',
+    BA: 'bg-[#13498a]/10 text-[#13498a] border-[#13498a]/20',
+    MANAGER: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+    TEAM_LEADER: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
+    EMPLOYEE: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
   }
-  return colors[role] || 'bg-gray-500/10 text-gray-500 border-gray-500/20'
+  return colors[role] || 'bg-slate-500/10 text-slate-500 border-slate-500/20'
 }
 
 export function calculateProgress(startDate?: Date | null, endDate?: Date | null): number {

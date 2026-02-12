@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession, canManageProjects } from '@/lib/auth'
+import { getSession, canUpdateProjects } from '@/lib/auth'
 import { updateProjectSchema } from '@/lib/validations'
 
 interface Params {
@@ -107,8 +107,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
             return NextResponse.json({ project })
         }
 
-        // Admin and PA can update all fields
-        if (!canManageProjects(session.role)) {
+        // Admin, BA, PA, Manager, and Team Leader can update projects
+        if (!canUpdateProjects(session.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
@@ -123,13 +123,40 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
         const { startDate, endDate, githubLink, ...updateData } = validation.data
 
+        // Restrict Managers and Team Leaders from changing title/description
+        if (session.role === 'MANAGER' || session.role === 'TEAM_LEADER') {
+            // Verify management hierarchy: project must be assigned to them or their subordinates
+            const projectToUpdate = await prisma.project.findUnique({
+                where: { id },
+                include: {
+                    assignedTo: {
+                        include: {
+                            manager: true
+                        }
+                    }
+                }
+            })
+
+            const isAssignedToThem = projectToUpdate?.assignedToId === session.userId
+            const isDirectSubordinate = projectToUpdate?.assignedTo?.managerId === session.userId
+            const isIndirectSubordinate = projectToUpdate?.assignedTo?.manager?.managerId === session.userId
+
+            if (!isAssignedToThem && !isDirectSubordinate && !isIndirectSubordinate) {
+                return NextResponse.json({ error: 'You can only update projects in your management line' }, { status: 403 })
+            }
+
+            // Remove title and description from update for Managers and Team Leaders
+            delete (updateData as any).title
+            delete (updateData as any).description
+        }
+
         const project = await prisma.project.update({
             where: { id },
             data: {
                 ...updateData,
-                startDate: startDate ? new Date(startDate) : existingProject.startDate,
-                endDate: endDate ? new Date(endDate) : existingProject.endDate,
-                githubLink: githubLink !== undefined ? (githubLink || null) : existingProject.githubLink,
+                startDate: startDate ? new Date(startDate) : undefined,
+                endDate: endDate ? new Date(endDate) : undefined,
+                githubLink: githubLink !== undefined ? (githubLink || null) : undefined,
             },
             include: {
                 assignedTo: {

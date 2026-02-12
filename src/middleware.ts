@@ -8,7 +8,7 @@ const publicRoutes = ['/login', '/api/auth/login']
 // Role-based route access
 const roleRoutes: Record<string, string[]> = {
     '/employees': ['ADMIN', 'HR'],
-    '/api/users': ['ADMIN', 'HR', 'BA', 'PA', 'EMPLOYEE'],
+    '/api/users': ['ADMIN', 'HR', 'BA', 'PA', 'EMPLOYEE', 'MANAGER', 'TEAM_LEADER'],
 }
 
 export async function middleware(request: NextRequest) {

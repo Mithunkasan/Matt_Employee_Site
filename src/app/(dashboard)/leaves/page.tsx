@@ -15,8 +15,9 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { Check, X, Calendar, User } from 'lucide-react'
+import { Check, X, Calendar, User, Download } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 
 interface LeaveRequest {
@@ -30,6 +31,7 @@ interface LeaveRequest {
         id: string
         name: string
         department: string | null
+        email?: string
     }
 }
 
@@ -38,17 +40,22 @@ export default function LeaveRequestsPage() {
     const [leaves, setLeaves] = useState<LeaveRequest[]>([])
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
+    const [selectedMonth, setSelectedMonth] = useState(() => {
+        const now = new Date()
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    })
 
-    const isAdmin = user?.role === 'ADMIN'
+    const isAdmin = user?.role === 'ADMIN' || user?.role === 'HR'
 
     useEffect(() => {
         fetchLeaves()
-    }, [filter])
+    }, [filter, selectedMonth])
 
     const fetchLeaves = async () => {
         try {
-            const url = filter === 'all' ? '/api/leaves' : `/api/leaves?status=${filter.toUpperCase()}`
-            const res = await fetch(url)
+            const statusParam = filter === 'all' ? '' : `&status=${filter.toUpperCase()}`
+            const monthParam = `&month=${selectedMonth}`
+            const res = await fetch(`/api/leaves?${statusParam}${monthParam}`)
             if (res.ok) {
                 const data = await res.json()
                 setLeaves(data.leaves || [])
@@ -58,6 +65,45 @@ export default function LeaveRequestsPage() {
         } finally {
             setLoading(false)
         }
+    }
+
+    const downloadCSV = () => {
+        if (leaves.length === 0) {
+            toast.error('No leave requests to download')
+            return
+        }
+
+        // CSV Headers
+        const headers = ['Employee Name', 'Department', 'Start Date', 'End Date', 'Reason', 'Status', 'Requested On']
+
+        // Convert data to CSV rows
+        const rows = leaves.map(l => [
+            l.user.name,
+            l.user.department || '-',
+            formatDate(l.startDate),
+            formatDate(l.endDate),
+            l.reason.replace(/,/g, ';'),
+            l.status,
+            formatDate(l.createdAt)
+        ])
+
+        // Join headers and rows
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n')
+
+        // Create download link
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.setAttribute('href', url)
+        link.setAttribute('download', `Leave_Requests_Report_${selectedMonth}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        toast.success('Leave report downloaded')
     }
 
     const handleAction = async (leaveId: number, action: 'approve' | 'reject') => {
@@ -165,32 +211,42 @@ export default function LeaveRequestsPage() {
                     </Card>
                 </div>
 
-                {/* Filter Buttons */}
-                <div className="flex gap-2 mb-6">
-                    <Button
-                        variant={filter === 'all' ? 'default' : 'outline'}
-                        onClick={() => setFilter('all')}
-                    >
-                        All
-                    </Button>
-                    <Button
-                        variant={filter === 'pending' ? 'default' : 'outline'}
-                        onClick={() => setFilter('pending')}
-                    >
-                        Pending
-                    </Button>
-                    <Button
-                        variant={filter === 'approved' ? 'default' : 'outline'}
-                        onClick={() => setFilter('approved')}
-                    >
-                        Approved
-                    </Button>
-                    <Button
-                        variant={filter === 'rejected' ? 'default' : 'outline'}
-                        onClick={() => setFilter('rejected')}
-                    >
-                        Rejected
-                    </Button>
+                {/* Filter & Actions Bar */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div className="flex flex-wrap items-center gap-4">
+                        <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                            {(['all', 'pending', 'approved', 'rejected'] as const).map((f) => (
+                                <Button
+                                    key={f}
+                                    size="sm"
+                                    variant={filter === f ? 'default' : 'ghost'}
+                                    onClick={() => setFilter(f)}
+                                    className={filter === f ? 'bg-[#13498a] text-white' : ''}
+                                >
+                                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                                </Button>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-3 bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <Label className="text-sm font-medium">Month:</Label>
+                            <input
+                                type="month"
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                                className="bg-transparent border-none focus:outline-none text-sm"
+                            />
+                        </div>
+                    </div>
+
+                    {isAdmin && (
+                        <Button
+                            onClick={downloadCSV}
+                            className="bg-[#13498a] hover:bg-[#13498a]/90 text-white shadow-lg shadow-blue-500/10"
+                        >
+                            <Download className="h-4 w-4 mr-2" />
+                            Download CSV
+                        </Button>
+                    )}
                 </div>
 
                 {/* Leave Requests Table */}

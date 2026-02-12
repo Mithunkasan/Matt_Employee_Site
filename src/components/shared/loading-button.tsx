@@ -26,7 +26,11 @@ export function LoadingButton({
             disabled={disabled || loading}
             {...props}
         >
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {loading && (
+                <div className="mr-2 h-4 w-4 relative animate-pulse">
+                    <img src="/logo.png" alt="" className="h-full w-full object-contain" />
+                </div>
+            )}
             {children}
         </Button>
     )

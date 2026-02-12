@@ -98,9 +98,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
         const updateData = { ...validation.data }
 
-        // Only Admin can change roles
-        if (updateData.role && session.role !== 'ADMIN') {
-            delete updateData.role
+        // Role change restrictions
+        if (updateData.role) {
+            // HR can only assign certain roles
+            if (session.role === 'HR' && !['EMPLOYEE', 'PA', 'BA', 'MANAGER', 'TEAM_LEADER'].includes(updateData.role)) {
+                return NextResponse.json(
+                    { error: 'HR cannot assign Admin or HR roles' },
+                    { status: 403 }
+                )
+            }
+            // Non-admin, non-HR users cannot change roles at all
+            if (session.role !== 'ADMIN' && session.role !== 'HR') {
+                delete updateData.role
+            }
         }
 
         // Only Admin/HR can change status

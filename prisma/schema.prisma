@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,76 +7,74 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  HR
-  PA
-  BA
-  EMPLOYEE
-}
-
-enum UserStatus {
-  ACTIVE
-  INACTIVE
-}
-
-enum ProjectStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-}
-
-enum AttendanceStatus {
-  PRESENT
-  ABSENT
-  LEAVE
-}
-
 model User {
-  id         String     @id @default(cuid())
-  name       String
-  email      String     @unique
-  password   String
-  role       Role       @default(EMPLOYEE)
-  status     UserStatus @default(ACTIVE)
-  department String?
-  phone      String?
-  avatar     String?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-
-  // Relations
-  assignedProjects Project[]      @relation("AssignedTo")
-  createdProjects  Project[]      @relation("CreatedBy")
-  dailyReports     DailyReport[]
-  attendances      Attendance[]
+  id               String         @id @default(cuid())
+  name             String
+  email            String         @unique
+  password         String
+  role             Role           @default(EMPLOYEE)
+  status           UserStatus     @default(ACTIVE)
+  department       String?
+  phone            String?
+  avatar           String?
+  managerId        String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
   LeaveRequest     LeaveRequest[]
   Notification     Notification[]
+  attendances      Attendance[]
+  dailyReports     DailyReport[]
+  wfhRequests      WorkFromHomeRequest[]
+  assignedProjects Project[]      @relation("AssignedTo")
+  createdProjects  Project[]      @relation("CreatedBy")
+  assignedTasks     Task[]
+  manager          User?          @relation("ManagerSubordinates", fields: [managerId], references: [id])
+  subordinates     User[]         @relation("ManagerSubordinates")
+  lastActivityAt   DateTime?
+  stuckKeyAlert    Boolean        @default(false)
 
   @@map("users")
 }
 
 model Project {
-  id          String        @id @default(cuid())
-  title       String
-  description String?
-  status      ProjectStatus @default(PENDING)
-  priority    String        @default("MEDIUM") // LOW, MEDIUM, HIGH
-  startDate   DateTime?
-  endDate     DateTime?
-  githubLink  String?
-  fileUrl     String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  // Relations
+  id           String        @id @default(cuid())
+  title        String
+  description  String?
+  status       ProjectStatus @default(PENDING)
+  priority     String        @default("MEDIUM")
+  startDate    DateTime?
+  endDate      DateTime?
+  githubLink   String?
+  fileUrl      String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   assignedToId String?
-  assignedTo   User?         @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
   createdById  String
-  createdBy    User          @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   dailyReports DailyReport[]
+  tasks        Task[]
+  assignedTo   User?         @relation("AssignedTo", fields: [assignedToId], references: [id])
+  createdBy    User          @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@map("projects")
+}
+
+model Task {
+  id           String        @id @default(cuid())
+  title        String
+  description  String?
+  status       TaskStatus    @default(PENDING)
+  priority     String        @default("MEDIUM")
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  projectId    String
+  assignedToId String?
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignedTo   User?         @relation(fields: [assignedToId], references: [id])
+  dailyReports DailyReport[]
+
+  @@map("tasks")
 }
 
 model DailyReport {
@@ -89,51 +84,44 @@ model DailyReport {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  userId      String
+  projectId   String
+  taskId      String?
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task        Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Relations
-  userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, projectId, date])
   @@map("daily_reports")
 }
 
 model Attendance {
-  id           String              @id @default(cuid())
-  date         DateTime            @db.Date
-  status       AttendanceStatus    @default(PRESENT)
-  totalHours   Float               @default(0) // Total cumulative hours for the day
-  notes        String?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-
-  // Relations
-  userId   String
-  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions AttendanceSession[] // Multiple check-in/check-out sessions per day
+  id         String              @id @default(cuid())
+  date       DateTime            @db.Date
+  notes      String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  userId     String
+  status     AttendanceStatus    @default(PRESENT)
+  totalHours Float               @default(0)
+  sessions   AttendanceSession[]
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date], name: "userId_date")
   @@map("attendances")
 }
 
-// Track individual login/logout sessions within a day
 model AttendanceSession {
   id           String     @id @default(cuid())
-  checkIn      DateTime   // When employee logged in
-  checkOut     DateTime?  // When employee logged out (null if still logged in)
-  hoursWorked  Float      @default(0) // Hours for this specific session
+  checkIn      DateTime
+  checkOut     DateTime?
+  hoursWorked  Float      @default(0)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-
-  // Relations
   attendanceId String
   attendance   Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
 
   @@map("attendance_sessions")
 }
-
 
 model LeaveRequest {
   id        Int         @id @default(autoincrement())
@@ -147,10 +135,18 @@ model LeaveRequest {
   user      User        @relation(fields: [userId], references: [id])
 }
 
-enum LeaveStatus {
-  PENDING
-  APPROVED
-  REJECTED
+model WorkFromHomeRequest {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime
+  reason    String
+  status    LeaveStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@map("wfh_requests")
 }
 
 model Notification {
@@ -161,4 +157,44 @@ model Notification {
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  ADMIN
+  HR
+  BA
+  MANAGER
+  TEAM_LEADER
+  EMPLOYEE
+  PA
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ProjectStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  WFH
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

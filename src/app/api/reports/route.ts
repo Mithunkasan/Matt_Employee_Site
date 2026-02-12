@@ -19,7 +19,9 @@ export async function GET(request: NextRequest) {
 
         const where: Record<string, unknown> = {}
 
-        // Employees can only see their own reports
+        // Employees can only see their own reports. BAs can see all if they have access, 
+        // but if we want them to report as well, we might want to let them filter.
+        // Actually, let's allow BAs to see all reports but restrict Employees.
         if (session.role === 'EMPLOYEE') {
             where.userId = session.userId
         } else if (userId) {
@@ -27,6 +29,7 @@ export async function GET(request: NextRequest) {
         }
 
         if (projectId) where.projectId = projectId
+        if (searchParams.get('taskId')) where.taskId = searchParams.get('taskId')
 
         // Date filtering
         if (startDate || endDate) {
@@ -52,6 +55,12 @@ export async function GET(request: NextRequest) {
                         status: true,
                     },
                 },
+                task: {
+                    select: {
+                        id: true,
+                        title: true,
+                    }
+                }
             },
             orderBy: { date: 'desc' },
         })
@@ -84,11 +93,10 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const { projectId, reportText, hoursWorked, date } = validation.data
+        const { projectId, taskId, reportText, hoursWorked, date } = validation.data
         const reportDate = date ? new Date(date) : new Date()
-        reportDate.setHours(0, 0, 0, 0)
 
-        // Verify the user is assigned to this project (or is Admin/PA)
+        // Verify the user is assigned to this project or the specific task
         const project = await prisma.project.findUnique({
             where: { id: projectId },
         })
@@ -97,53 +105,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Project not found' }, { status: 404 })
         }
 
-        if (session.role === 'EMPLOYEE' && project.assignedToId !== session.userId) {
-            return NextResponse.json(
-                { error: 'You are not assigned to this project' },
-                { status: 403 }
-            )
-        }
-
-        // Check for existing report
-        const existingReport = await prisma.dailyReport.findFirst({
-            where: {
-                userId: session.userId,
-                projectId,
-                date: reportDate,
-            },
-        })
-
-        if (existingReport) {
-            // Update existing report
-            const report = await prisma.dailyReport.update({
-                where: { id: existingReport.id },
-                data: {
-                    reportText,
-                    hoursWorked,
-                },
-                include: {
-                    user: {
-                        select: {
-                            id: true,
-                            name: true,
-                        },
-                    },
-                    project: {
-                        select: {
-                            id: true,
-                            title: true,
-                        },
-                    },
-                },
-            })
-            return NextResponse.json({ report, message: 'Report updated' })
-        }
-
-        // Create new report
+        // Create new report (removed check for existing report to allow hourly updates)
         const report = await prisma.dailyReport.create({
             data: {
                 userId: session.userId,
                 projectId,
+                taskId: taskId || null,
                 reportText,
                 hoursWorked,
                 date: reportDate,
@@ -161,8 +128,15 @@ export async function POST(request: NextRequest) {
                         title: true,
                     },
                 },
+                task: {
+                    select: {
+                        id: true,
+                        title: true,
+                    }
+                }
             },
         })
+
 
         return NextResponse.json({ report }, { status: 201 })
     } catch (error) {

@@ -14,8 +14,9 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url)
         const status = searchParams.get('status')
         const userId = searchParams.get('userId')
+        const month = searchParams.get('month') // Format: YYYY-MM
 
-        const where: Record<string, unknown> = {}
+        const where: Record<string, any> = {}
 
         // Employees can only see their own leaves
         if (session.role === 'EMPLOYEE') {
@@ -24,6 +25,16 @@ export async function GET(request: NextRequest) {
             // Admin/HR/BA can see all (or filtered)
             if (userId) where.userId = userId
             if (status) where.status = status
+        }
+
+        if (month) {
+            const [year, monthNum] = month.split('-')
+            const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1)
+            const endDate = new Date(parseInt(year), parseInt(monthNum), 0, 23, 59, 59)
+            where.startDate = {
+                gte: startDate,
+                lte: endDate
+            }
         }
 
         const leaves = await prisma.leaveRequest.findMany({
@@ -86,15 +97,18 @@ export async function POST(request: NextRequest) {
             },
         })
 
-        // Get all admin users to send notifications
-        const admins = await prisma.user.findMany({
-            where: { role: 'ADMIN', status: 'ACTIVE' },
+        // Get all admin and HR users to send notifications
+        const adminsAndHR = await prisma.user.findMany({
+            where: {
+                role: { in: ['ADMIN', 'HR'] },
+                status: 'ACTIVE'
+            },
             select: { id: true },
         })
 
-        // Create notifications for all admins
-        const notifications = admins.map((admin) => ({
-            userId: admin.id,
+        // Create notifications for all admins and HR
+        const notifications = adminsAndHR.map((staff) => ({
+            userId: staff.id,
             title: 'New Leave Request',
             message: `${user?.name} (${user?.department || 'No department'}) has requested leave from ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}. Reason: ${reason}`,
         }))

@@ -225,7 +225,7 @@ export default function ProjectDetailPage() {
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <Badge variant="outline" className={getStatusColor(project.status)}>
-                                        {project.status.replace('_', ' ')}
+                                        {project.status === 'IN_PROGRESS' ? 'Ongoing' : project.status.replace('_', ' ')}
                                     </Badge>
                                     <Badge variant="outline" className={getPriorityColor(project.priority)}>
                                         {project.priority} Priority
@@ -445,7 +445,7 @@ export default function ProjectDetailPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="PENDING">Pending</SelectItem>
-                                        <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                                        <SelectItem value="IN_PROGRESS">Ongoing</SelectItem>
                                         <SelectItem value="COMPLETED">Completed</SelectItem>
                                     </SelectContent>
                                 </Select>

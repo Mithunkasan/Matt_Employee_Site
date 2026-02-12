@@ -52,6 +52,12 @@ interface Employee {
     status: string
     department?: string | null
     phone?: string | null
+    managerId?: string | null
+    manager?: {
+        id: string
+        name: string
+        role: string
+    } | null
     createdAt: string
 }
 
@@ -75,6 +81,7 @@ export default function EmployeesPage() {
         department: '',
         phone: '',
         status: 'ACTIVE',
+        managerId: '',
     })
 
     const canManageEmployees = user?.role === 'ADMIN' || user?.role === 'HR'
@@ -99,14 +106,19 @@ export default function EmployeesPage() {
 
     const openCreateDialog = () => {
         setEditingEmployee(null)
+        // Set default role based on user's role
+        let defaultRole = 'BA'
+        if (user?.role === 'ADMIN') defaultRole = 'EMPLOYEE'
+
         setFormData({
             name: '',
             email: '',
             password: '',
-            role: 'EMPLOYEE',
+            role: defaultRole,
             department: '',
             phone: '',
             status: 'ACTIVE',
+            managerId: '',
         })
         setDialogOpen(true)
     }
@@ -121,6 +133,7 @@ export default function EmployeesPage() {
             department: employee.department || '',
             phone: employee.phone || '',
             status: employee.status,
+            managerId: employee.managerId || '',
         })
         setDialogOpen(true)
     }
@@ -163,6 +176,11 @@ export default function EmployeesPage() {
     }
 
     const handleDelete = async (employee: Employee) => {
+        if (user?.role !== 'ADMIN') {
+            toast.error('Only administrators can delete users')
+            return
+        }
+
         if (!confirm(`Are you sure you want to delete ${employee.name}?`)) return
 
         try {
@@ -231,12 +249,24 @@ export default function EmployeesPage() {
 
             <div className="p-6">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
                     <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                         <p className="text-2xl font-bold text-slate-900 dark:text-white">
                             {employees.filter(e => e.status === 'ACTIVE').length}
                         </p>
                         <p className="text-sm text-slate-500 dark:text-slate-400">Active</p>
+                    </Card>
+                    <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                            {employees.filter(e => e.role === 'MANAGER').length}
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Managers</p>
+                    </Card>
+                    <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                            {employees.filter(e => e.role === 'TEAM_LEADER').length}
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Team Leaders</p>
                     </Card>
                     <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                         <p className="text-2xl font-bold text-slate-900 dark:text-white">
@@ -277,6 +307,8 @@ export default function EmployeesPage() {
                             <SelectItem value="all">All Roles</SelectItem>
                             <SelectItem value="ADMIN">Admin</SelectItem>
                             <SelectItem value="HR">HR</SelectItem>
+                            <SelectItem value="MANAGER">Manager</SelectItem>
+                            <SelectItem value="TEAM_LEADER">Team Leader</SelectItem>
                             <SelectItem value="BA">Business Associate</SelectItem>
                             <SelectItem value="EMPLOYEE">Employee</SelectItem>
                         </SelectContent>
@@ -306,6 +338,7 @@ export default function EmployeesPage() {
                             <TableRow className="border-slate-200 dark:border-slate-700/50">
                                 <TableHead>Employee</TableHead>
                                 <TableHead>Role</TableHead>
+                                <TableHead>Manager</TableHead>
                                 <TableHead>Department</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Joined</TableHead>
@@ -315,7 +348,7 @@ export default function EmployeesPage() {
                         <TableBody>
                             {filteredEmployees.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-12 text-slate-500 dark:text-slate-400">
+                                    <TableCell colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400">
                                         No employees found
                                     </TableCell>
                                 </TableRow>
@@ -343,6 +376,20 @@ export default function EmployeesPage() {
                                             <Badge variant="outline" className={getRoleColor(employee.role)}>
                                                 {employee.role}
                                             </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-slate-600 dark:text-slate-300">
+                                            {employee.manager ? (
+                                                <div className="flex items-center gap-2">
+                                                    <Avatar className="h-6 w-6">
+                                                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs">
+                                                            {getInitials(employee.manager.name)}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="text-sm">{employee.manager.name}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-400">-</span>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-slate-600 dark:text-slate-300">
                                             {employee.department || '-'}
@@ -400,7 +447,12 @@ export default function EmployeesPage() {
                             {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
                         </DialogTitle>
                         <DialogDescription>
-                            {editingEmployee ? 'Update employee details' : 'Register a new team member'}
+                            {editingEmployee ? 'Update employee details' :
+                                user?.role === 'HR' ? 'Register a new Manager' :
+                                    user?.role === 'MANAGER' ? 'Register a new Team Leader' :
+                                        user?.role === 'TEAM_LEADER' ? 'Register a new Employee' :
+                                            'Register a new team member'
+                            }
                         </DialogDescription>
                     </DialogHeader>
 
@@ -455,32 +507,107 @@ export default function EmployeesPage() {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {user?.role === 'ADMIN' && <SelectItem value="ADMIN">Admin</SelectItem>}
-                                        {user?.role === 'ADMIN' && <SelectItem value="HR">HR</SelectItem>}
-                                        <SelectItem value="BA">Business Associate (BA)</SelectItem>
-                                        <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                                        {user?.role === 'ADMIN' && (
+                                            <>
+                                                <SelectItem value="ADMIN">Admin</SelectItem>
+                                                <SelectItem value="HR">HR</SelectItem>
+                                                <SelectItem value="MANAGER">Manager</SelectItem>
+                                                <SelectItem value="TEAM_LEADER">Team Leader</SelectItem>
+                                                <SelectItem value="BA">Business Associate (BA)</SelectItem>
+                                                <SelectItem value="PA">Personal Assistant (PA)</SelectItem>
+                                                <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                                            </>
+                                        )}
+                                        {user?.role === 'HR' && (
+                                            <>
+                                                <SelectItem value="BA">Business Associate (BA)</SelectItem>
+                                                <SelectItem value="MANAGER">Manager</SelectItem>
+                                                <SelectItem value="TEAM_LEADER">Team Leader</SelectItem>
+                                                <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                                            </>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="department">Department</Label>
-                                <Select
-                                    value={formData.department}
-                                    onValueChange={(value) => setFormData({ ...formData, department: value })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select Department" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Web Development (React)">Web Development (React)</SelectItem>
-                                        <SelectItem value="Web Development (Python)">Web Development (Python)</SelectItem>
-                                        <SelectItem value="Machine Learning & Deep Learning">Machine Learning & Deep Learning</SelectItem>
-                                        <SelectItem value="Research Writing">Research Writing</SelectItem>
-                                        <SelectItem value="R&D">R&D</SelectItem>
-                                        <SelectItem value="Digital Marketing">Digital Marketing</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+
+                            {/* Manager Selection for TEAM_LEADER - Only show when creating */}
+                            {formData.role === 'TEAM_LEADER' && !editingEmployee && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="managerId">Manager *</Label>
+                                    <Select
+                                        value={formData.managerId}
+                                        onValueChange={(value) => setFormData({ ...formData, managerId: value })}
+                                        required
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select Manager" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {employees
+                                                .filter(emp => emp.role === 'MANAGER' && emp.status === 'ACTIVE')
+                                                .map(emp => (
+                                                    <SelectItem key={emp.id} value={emp.id}>
+                                                        {emp.name}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        Team Leader must be assigned to a Manager
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Manager Selection for EMPLOYEE - Only show when creating */}
+                            {formData.role === 'EMPLOYEE' && !editingEmployee && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="managerId">Team Leader (Manager) *</Label>
+                                    <Select
+                                        value={formData.managerId}
+                                        onValueChange={(value) => setFormData({ ...formData, managerId: value })}
+                                        required
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select Team Leader" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {employees
+                                                .filter(emp => emp.role === 'TEAM_LEADER' && emp.status === 'ACTIVE')
+                                                .map(emp => (
+                                                    <SelectItem key={emp.id} value={emp.id}>
+                                                        {emp.name}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        Employee must be assigned to a Team Leader
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Department - Only show when not selecting manager */}
+                            {(formData.role !== 'EMPLOYEE' && formData.role !== 'TEAM_LEADER' || editingEmployee) && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="department">Department</Label>
+                                    <Select
+                                        value={formData.department}
+                                        onValueChange={(value) => setFormData({ ...formData, department: value })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select Department" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Web Development (React)">Web Development (React)</SelectItem>
+                                            <SelectItem value="Web Development (Python)">Web Development (Python)</SelectItem>
+                                            <SelectItem value="Machine Learning & Deep Learning">Machine Learning & Deep Learning</SelectItem>
+                                            <SelectItem value="Research Writing">Research Writing</SelectItem>
+                                            <SelectItem value="R&D">R&D</SelectItem>
+                                            <SelectItem value="Digital Marketing">Digital Marketing</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -523,6 +650,6 @@ export default function EmployeesPage() {
                     </form>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     )
 }

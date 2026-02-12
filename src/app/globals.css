@@ -49,118 +49,135 @@
 :root {
   --radius: 0.625rem;
   /* Matt Engineering Solutions Brand Colors */
-  /* Primary: Navy Blue #13498a */
-  /* Accent/Destructive: Red #b12024 */
-  
-  --background: oklch(0.99 0 0);
-  --foreground: oklch(0.18 0.05 245);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.05 245);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.05 245);
-  
+  /* ONLY TWO COLORS: #13498a (Navy Blue) and #b12024 (Red) */
+
+  /* Neutral backgrounds - very light tints of navy */
+  --background: #ffffff;
+  --foreground: #13498a;
+  --card: #ffffff;
+  --card-foreground: #13498a;
+  --popover: #ffffff;
+  --popover-foreground: #13498a;
+
   /* Primary - Navy Blue #13498a */
-  --primary: oklch(0.32 0.09 245);
-  --primary-foreground: oklch(0.99 0 0);
-  
-  /* Secondary - Lighter Navy */
-  --secondary: oklch(0.92 0.02 245);
-  --secondary-foreground: oklch(0.32 0.09 245);
-  
-  --muted: oklch(0.95 0.01 245);
-  --muted-foreground: oklch(0.5 0.03 245);
-  
-  /* Accent - Navy Blue */
-  --accent: oklch(0.92 0.02 245);
-  --accent-foreground: oklch(0.32 0.09 245);
-  
+  --primary: #13498a;
+  --primary-foreground: #ffffff;
+
+  /* Secondary - Light Navy tint */
+  --secondary: #e8eef5;
+  --secondary-foreground: #13498a;
+
+  /* Muted - Very light navy tint */
+  --muted: #f5f7fa;
+  --muted-foreground: #6a8cb8;
+
+  /* Accent - Light Navy */
+  --accent: #e8eef5;
+  --accent-foreground: #13498a;
+
   /* Destructive - Red #b12024 */
-  --destructive: oklch(0.45 0.18 25);
-  --destructive-foreground: oklch(0.99 0 0);
-  
-  --border: oklch(0.88 0.01 245);
-  --input: oklch(0.88 0.01 245);
-  --ring: oklch(0.32 0.09 245);
-  
-  /* Charts - Navy Blue and Red theme */
-  --chart-1: oklch(0.32 0.09 245);  /* Navy Blue */
-  --chart-2: oklch(0.45 0.18 25);   /* Red */
-  --chart-3: oklch(0.50 0.10 245);  /* Lighter Navy */
-  --chart-4: oklch(0.60 0.12 25);   /* Lighter Red */
-  --chart-5: oklch(0.70 0.05 245);  /* Very Light Navy */
-  
+  --destructive: #b12024;
+  --destructive-foreground: #ffffff;
+
+  /* Borders and inputs - light navy tint */
+  --border: #d4dde8;
+  --input: #d4dde8;
+  --ring: #13498a;
+
+  /* Charts - Navy Blue and Red variations */
+  --chart-1: #13498a;
+  /* Navy Blue */
+  --chart-2: #b12024;
+  /* Red */
+  --chart-3: #2d6bb5;
+  /* Lighter Navy */
+  --chart-4: #d93d3f;
+  /* Lighter Red */
+  --chart-5: #5a8dd1;
+  /* Very Light Navy */
+
   /* Sidebar - Navy Blue theme */
-  --sidebar: oklch(0.99 0 0);
-  --sidebar-foreground: oklch(0.32 0.09 245);
-  --sidebar-primary: oklch(0.32 0.09 245);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.92 0.02 245);
-  --sidebar-accent-foreground: oklch(0.32 0.09 245);
-  --sidebar-border: oklch(0.88 0.01 245);
-  --sidebar-ring: oklch(0.32 0.09 245);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #13498a;
+  --sidebar-primary: #13498a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8eef5;
+  --sidebar-accent-foreground: #13498a;
+  --sidebar-border: #d4dde8;
+  --sidebar-ring: #13498a;
 }
 
 .dark {
   /* Matt Engineering Solutions Dark Mode */
-  --background: oklch(0.12 0.02 245);
-  --foreground: oklch(0.95 0.01 245);
-  --card: oklch(0.18 0.03 245);
-  --card-foreground: oklch(0.95 0.01 245);
-  --popover: oklch(0.18 0.03 245);
-  --popover-foreground: oklch(0.95 0.01 245);
-  
-  /* Primary - Lighter Navy in dark mode */
-  --primary: oklch(0.55 0.10 245);
-  --primary-foreground: oklch(0.99 0 0);
-  
-  --secondary: oklch(0.22 0.04 245);
-  --secondary-foreground: oklch(0.95 0.01 245);
-  
-  --muted: oklch(0.22 0.04 245);
-  --muted-foreground: oklch(0.65 0.03 245);
-  
-  --accent: oklch(0.22 0.04 245);
-  --accent-foreground: oklch(0.95 0.01 245);
-  
+  /* ONLY TWO COLORS: #13498a (Navy Blue) and #b12024 (Red) */
+
+  /* Dark navy background */
+  --background: #0a1e3a;
+  --foreground: #e8eef5;
+  --card: #13498a;
+  --card-foreground: #e8eef5;
+  --popover: #13498a;
+  --popover-foreground: #e8eef5;
+
+  /* Primary - Lighter Navy for dark mode */
+  --primary: #5a8dd1;
+  --primary-foreground: #ffffff;
+
+  --secondary: #2d5a8f;
+  --secondary-foreground: #e8eef5;
+
+  --muted: #1a3657;
+  --muted-foreground: #9fb8d6;
+
+  --accent: #2d5a8f;
+  --accent-foreground: #e8eef5;
+
   /* Destructive - Lighter Red in dark mode */
-  --destructive: oklch(0.55 0.20 25);
-  --destructive-foreground: oklch(0.99 0 0);
-  
-  --border: oklch(0.25 0.04 245);
-  --input: oklch(0.25 0.04 245);
-  --ring: oklch(0.55 0.10 245);
-  
+  --destructive: #d93d3f;
+  --destructive-foreground: #ffffff;
+
+  --border: #2d5a8f;
+  --input: #2d5a8f;
+  --ring: #5a8dd1;
+
   /* Charts - Dark mode */
-  --chart-1: oklch(0.55 0.10 245);  /* Lighter Navy */
-  --chart-2: oklch(0.55 0.20 25);   /* Lighter Red */
-  --chart-3: oklch(0.45 0.08 245);  /* Medium Navy */
-  --chart-4: oklch(0.65 0.15 25);   /* Light Red */
-  --chart-5: oklch(0.70 0.05 245);  /* Very Light Navy */
-  
+  --chart-1: #5a8dd1;
+  /* Lighter Navy */
+  --chart-2: #d93d3f;
+  /* Lighter Red */
+  --chart-3: #2d6bb5;
+  /* Medium Navy */
+  --chart-4: #e66466;
+  /* Light Red */
+  --chart-5: #7aa3db;
+  /* Very Light Navy */
+
   /* Sidebar - Dark Navy theme */
-  --sidebar: oklch(0.15 0.03 245);
-  --sidebar-foreground: oklch(0.95 0.01 245);
-  --sidebar-primary: oklch(0.55 0.10 245);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.22 0.04 245);
-  --sidebar-accent-foreground: oklch(0.95 0.01 245);
-  --sidebar-border: oklch(0.25 0.04 245);
-  --sidebar-ring: oklch(0.55 0.10 245);
+  --sidebar: #0f2d52;
+  --sidebar-foreground: #e8eef5;
+  --sidebar-primary: #5a8dd1;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2d5a8f;
+  --sidebar-accent-foreground: #e8eef5;
+  --sidebar-border: #2d5a8f;
+  --sidebar-ring: #5a8dd1;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   html {
     scroll-behavior: smooth;
   }
+
   body {
     @apply bg-background text-foreground;
   }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - Navy Blue theme */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -171,18 +188,285 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.5 0 0 / 30%);
+  background: rgba(19, 73, 138, 0.3);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.5 0 0 / 50%);
+  background: rgba(19, 73, 138, 0.5);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: oklch(0.7 0 0 / 20%);
+  background: rgba(90, 141, 209, 0.3);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.7 0 0 / 40%);
+  background: rgba(90, 141, 209, 0.5);
+}
+
+/* ================================================= */
+/* RESPONSIVE DESIGN - Mobile & Tablet Support */
+/* ================================================= */
+
+/* Mobile-first responsive utilities */
+@layer utilities {
+
+  /* Container max-widths for different screens */
+  .container-responsive {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .container-responsive {
+      max-width: 640px;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .container-responsive {
+      max-width: 768px;
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-responsive {
+      max-width: 1024px;
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .container-responsive {
+      max-width: 1280px;
+    }
+  }
+
+  /* Responsive text sizes */
+  .text-responsive-xs {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .text-responsive-sm {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .text-responsive-base {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
+  .text-responsive-lg {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+
+  .text-responsive-xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  @media (min-width: 768px) {
+    .text-responsive-xl {
+      font-size: 1.5rem;
+      line-height: 2rem;
+    }
+  }
+
+  .text-responsive-2xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  @media (min-width: 768px) {
+    .text-responsive-2xl {
+      font-size: 1.875rem;
+      line-height: 2.25rem;
+    }
+  }
+
+  .text-responsive-3xl {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+
+  @media (min-width: 768px) {
+    .text-responsive-3xl {
+      font-size: 2.25rem;
+      line-height: 2.5rem;
+    }
+  }
+
+  /* Responsive spacing */
+  .spacing-mobile {
+    padding: 1rem;
+  }
+
+  .spacing-tablet {
+    padding: 1.5rem;
+  }
+
+  @media (min-width: 768px) {
+    .spacing-mobile {
+      padding: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .spacing-tablet {
+      padding: 2rem;
+    }
+  }
+
+  /* Mobile-friendly touch targets */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Responsive grid */
+  .grid-responsive {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .grid-responsive-sm-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 768px) {
+    .grid-responsive-md-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .grid-responsive-md-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .grid-responsive-lg-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .grid-responsive-lg-4 {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* Mobile navigation adjustments */
+  .mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--background);
+    border-top: 1px solid var(--border);
+    padding: 0.75rem;
+    z-index: 50;
+  }
+
+  @media (min-width: 768px) {
+    .mobile-nav {
+      position: static;
+      border: none;
+      padding: 0;
+    }
+  }
+
+  /* Hide on mobile */
+  .hidden-mobile {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .hidden-mobile {
+      display: block;
+    }
+  }
+
+  /* Show only on mobile */
+  .show-mobile {
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .show-mobile {
+      display: none;
+    }
+  }
+
+  /* Responsive flex */
+  .flex-responsive {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  @media (min-width: 768px) {
+    .flex-responsive {
+      flex-direction: row;
+    }
+  }
+}
+
+/* Safe area for mobile devices (iPhone notch, etc) */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+}
+
+/* Prevent horizontal scroll on mobile */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Ensure images are responsive */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Better tap highlighting on mobile */
+* {
+  -webkit-tap-highlight-color: rgba(19, 73, 138, 0.1);
+}
+
+.dark * {
+  -webkit-tap-highlight-color: rgba(90, 141, 209, 0.1);
+}
+
+@layer utilities {
+  @keyframes progress {
+    0% {
+      transform: scaleX(0);
+    }
+
+    50% {
+      transform: scaleX(0.5);
+    }
+
+    100% {
+      transform: scaleX(1);
+    }
+  }
+
+  .animate-progress {
+    animation: progress 2s infinite ease-in-out;
+  }
 }

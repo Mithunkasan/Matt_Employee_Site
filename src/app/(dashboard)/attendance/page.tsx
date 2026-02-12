@@ -33,7 +33,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { CalendarCheck, Clock, LogIn, LogOut, CheckCircle2, XCircle, Calendar } from 'lucide-react'
+import { CalendarCheck, Clock, LogIn, LogOut, CheckCircle2, XCircle, Calendar, Download } from 'lucide-react'
 import { formatDate, getStatusColor } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -72,6 +72,47 @@ export default function AttendancePage() {
     })
 
     const canViewAll = user?.role === 'ADMIN' || user?.role === 'HR'
+
+    const downloadCSV = () => {
+        if (attendances.length === 0) {
+            toast.error('No attendance records to download')
+            return
+        }
+
+        // CSV Headers
+        const headers = ['Employee Name', 'Email', 'Department', 'Date', 'Status', 'Check In', 'Check Out', 'Working Hours', 'Notes']
+
+        // Convert data to CSV rows
+        const rows = attendances.map(a => [
+            a.user.name,
+            a.user.email || '-',
+            a.user.department || '-',
+            formatDate(a.date),
+            a.status,
+            a.checkIn ? new Date(a.checkIn).toLocaleTimeString() : '-',
+            a.checkOut ? new Date(a.checkOut).toLocaleTimeString() : '-',
+            a.workingHours ? a.workingHours.toFixed(2) : '0',
+            a.notes?.replace(/,/g, ';') || '-'
+        ])
+
+        // Join headers and rows
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n')
+
+        // Create download link
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.setAttribute('href', url)
+        link.setAttribute('download', `Attendance_Report_${selectedMonth}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        toast.success('Attendance report downloaded')
+    }
 
     useEffect(() => {
         fetchAttendances()
@@ -280,15 +321,26 @@ export default function AttendancePage() {
                     </Card>
                 </div>
 
-                {/* Month Filter */}
-                <div className="flex items-center gap-4 mb-6">
-                    <Label className="text-slate-600 dark:text-slate-300">Month:</Label>
-                    <input
-                        type="month"
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                    />
+                {/* Month Filter & Actions */}
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                        <Label className="text-slate-600 dark:text-slate-300">Month:</Label>
+                        <input
+                            type="month"
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                        />
+                    </div>
+                    {canViewAll && (
+                        <Button
+                            onClick={downloadCSV}
+                            className="bg-[#13498a] hover:bg-[#13498a]/90 text-white shadow-lg shadow-blue-500/10"
+                        >
+                            <Download className="h-4 w-4 mr-2" />
+                            Download CSV
+                        </Button>
+                    )}
                 </div>
 
                 {/* Attendance Table */}

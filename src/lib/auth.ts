@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 
 // Role type matching Prisma schema
-export type Role = 'ADMIN' | 'HR' | 'BA' | 'PA' | 'EMPLOYEE'
+export type Role = 'ADMIN' | 'HR' | 'BA' | 'MANAGER' | 'TEAM_LEADER' | 'PA' | 'EMPLOYEE'
 
 const secretKey = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
 const key = new TextEncoder().encode(secretKey)
@@ -95,8 +95,12 @@ export function canAccessBA(role: Role): boolean {
     return role === 'ADMIN' || role === 'BA' || role === 'PA'
 }
 
-export function canManageProjects(role: Role): boolean {
+export function canCreateProjects(role: Role): boolean {
     return role === 'ADMIN' || role === 'BA' || role === 'PA'
+}
+
+export function canUpdateProjects(role: Role): boolean {
+    return role === 'ADMIN' || role === 'BA' || role === 'PA' || role === 'MANAGER' || role === 'TEAM_LEADER'
 }
 
 export function canManageEmployees(role: Role): boolean {
@@ -108,5 +112,5 @@ export function canViewAllAttendance(role: Role): boolean {
 }
 
 export function canViewAllReports(role: Role): boolean {
-    return role === 'ADMIN' || role === 'BA' || role === 'PA'
+    return role === 'ADMIN' || role === 'BA' || role === 'PA' || role === 'MANAGER'
 }

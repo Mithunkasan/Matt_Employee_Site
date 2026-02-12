@@ -66,6 +66,7 @@ export async function GET() {
             pendingProjects,
             todayAttendance,
             totalReportsToday,
+            pendingWfhRequests,
         ] = await Promise.all([
             prisma.user.count(),
             prisma.user.count({ where: { status: 'ACTIVE' } }),
@@ -85,6 +86,9 @@ export async function GET() {
                         gte: today,
                     },
                 },
+            }),
+            prisma.workFromHomeRequest.count({
+                where: { status: 'PENDING' },
             }),
         ])
 
@@ -123,6 +127,7 @@ export async function GET() {
                 pendingProjects,
                 todayAttendance,
                 totalReportsToday,
+                pendingWfhRequests,
             },
             recentProjects,
             recentReports,

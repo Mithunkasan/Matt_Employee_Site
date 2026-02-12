@@ -23,6 +23,7 @@ import { formatDate, getRoleColor } from '@/lib/utils'
 import Link from 'next/link'
 import { EmployeeWorkingHoursCard } from '@/components/shared/employee-working-hours'
 import { LeaveRequestButton } from '@/components/shared/leave-request-button'
+import { WfhRequestButton } from '@/components/shared/wfh-request-button'
 
 interface DashboardStats {
     totalEmployees?: number
@@ -126,32 +127,32 @@ export default function DashboardPage() {
                             value={stats?.myProjects || 0}
                             icon={FolderKanban}
                             variant="gradient"
-                            gradientFrom="from-violet-500"
-                            gradientTo="to-purple-600"
+                            gradientFrom="from-[#13498a]"
+                            gradientTo="to-[#1a3a61]"
                         />
                         <StatsCard
                             title="Completed"
                             value={stats?.myCompletedProjects || 0}
                             icon={CheckCircle2}
                             variant="gradient"
-                            gradientFrom="from-emerald-500"
-                            gradientTo="to-teal-600"
+                            gradientFrom="from-emerald-600"
+                            gradientTo="to-teal-700"
                         />
                         <StatsCard
                             title="Reports This Month"
                             value={stats?.myReportsThisMonth || 0}
                             icon={FileText}
                             variant="gradient"
-                            gradientFrom="from-amber-500"
-                            gradientTo="to-orange-600"
+                            gradientFrom="from-amber-600"
+                            gradientTo="to-orange-700"
                         />
                         <StatsCard
                             title="Days Present"
                             value={stats?.myAttendanceThisMonth || 0}
                             icon={CalendarCheck}
                             variant="gradient"
-                            gradientFrom="from-cyan-500"
-                            gradientTo="to-blue-600"
+                            gradientFrom="from-[#b12024]"
+                            gradientTo="to-red-700"
                         />
                     </div>
                 ) : (
@@ -161,8 +162,8 @@ export default function DashboardPage() {
                             value={stats?.totalEmployees || 0}
                             icon={Users}
                             variant="gradient"
-                            gradientFrom="from-violet-500"
-                            gradientTo="to-purple-600"
+                            gradientFrom="from-[#13498a]"
+                            gradientTo="to-[#1a3a61]"
                             description={`${stats?.activeEmployees || 0} active`}
                         />
                         <StatsCard
@@ -170,8 +171,8 @@ export default function DashboardPage() {
                             value={stats?.activeProjects || 0}
                             icon={Activity}
                             variant="gradient"
-                            gradientFrom="from-emerald-500"
-                            gradientTo="to-teal-600"
+                            gradientFrom="from-emerald-600"
+                            gradientTo="to-teal-700"
                             description={`${stats?.totalProjects || 0} total`}
                         />
                         <StatsCard
@@ -179,16 +180,16 @@ export default function DashboardPage() {
                             value={stats?.completedProjects || 0}
                             icon={CheckCircle2}
                             variant="gradient"
-                            gradientFrom="from-amber-500"
-                            gradientTo="to-orange-600"
+                            gradientFrom="from-amber-600"
+                            gradientTo="to-orange-700"
                         />
                         <StatsCard
                             title="Today's Attendance"
                             value={stats?.todayAttendance || 0}
                             icon={CalendarCheck}
                             variant="gradient"
-                            gradientFrom="from-cyan-500"
-                            gradientTo="to-blue-600"
+                            gradientFrom="from-[#b12024]"
+                            gradientTo="to-red-700"
                             description={`${stats?.totalReportsToday || 0} reports`}
                         />
                     </div>
@@ -197,7 +198,7 @@ export default function DashboardPage() {
                 {/* Employee Activity Monitor - Admin Only */}
                 {user?.role === 'ADMIN' && (
                     <Link href="/employee-activity">
-                        <Card className="p-6 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 border-0 hover:shadow-xl transition-all cursor-pointer group">
+                        <Card className="p-6 bg-gradient-to-br from-[#13498a] via-[#1a3a61] to-[#b12024] border-0 hover:shadow-xl transition-all cursor-pointer group">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
                                     <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -230,6 +231,35 @@ export default function DashboardPage() {
                     </div>
                 )}
 
+                {/* Project Allocation Card - Managers & Team Leaders */}
+                {['MANAGER', 'TEAM_LEADER'].includes(user?.role || '') && (
+                    <Link href="/projects">
+                        <Card className="p-6 bg-gradient-to-br from-[#13498a] via-[#1a3a61] to-[#7c3aed] border-0 hover:shadow-xl transition-all cursor-pointer group mb-6">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <FolderKanban className="h-7 w-7 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-white mb-1">
+                                            Project Allocation
+                                        </h3>
+                                        <p className="text-blue-100 text-sm">
+                                            Assign and transfer projects to your subordinates in the hierarchy
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 text-white">
+                                    <span className="text-sm font-medium">Allocate Now</span>
+                                    <svg className="h-5 w-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </Card>
+                    </Link>
+                )}
+
                 {/* Content sections */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Recent Projects */}
@@ -245,7 +275,7 @@ export default function DashboardPage() {
                             </div>
                             <Link
                                 href="/projects"
-                                className="text-sm text-violet-600 dark:text-violet-400 hover:underline"
+                                className="text-sm text-[#13498a] dark:text-blue-400 hover:underline"
                             >
                                 View all
                             </Link>
@@ -262,12 +292,12 @@ export default function DashboardPage() {
                                     <Link
                                         key={project.id}
                                         href={`/projects/${project.id}`}
-                                        className="block p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 hover:border-violet-300 dark:hover:border-violet-500/30 transition-colors"
+                                        className="block p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 hover:border-[#13498a]/30 dark:hover:border-[#13498a]/50 transition-colors"
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500/10 to-purple-500/10 flex items-center justify-center">
-                                                    <FolderKanban className="h-5 w-5 text-violet-500" />
+                                                <div className="h-10 w-10 rounded-xl bg-[#13498a]/10 flex items-center justify-center">
+                                                    <FolderKanban className="h-5 w-5 text-[#13498a]" />
                                                 </div>
                                                 <div>
                                                     <h3 className="font-medium text-slate-900 dark:text-white">
@@ -312,7 +342,7 @@ export default function DashboardPage() {
                             </div>
                             <Link
                                 href="/reports"
-                                className="text-sm text-violet-600 dark:text-violet-400 hover:underline"
+                                className="text-sm text-[#13498a] dark:text-blue-400 hover:underline"
                             >
                                 View all
                             </Link>
@@ -353,10 +383,13 @@ export default function DashboardPage() {
                     </Card>
                 </div>
 
-                {/* Quick Actions for Employees */}
-                {isEmployee && (
-                    <Card className="p-6 bg-gradient-to-br from-slate-900 to-slate-800 border-slate-700/50">
-                        <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
+                {/* Quick Actions for Employees, HR, BA, Manager, Team Leader */}
+                {(isEmployee || ['HR', 'BA', 'MANAGER', 'TEAM_LEADER'].includes(user?.role || '')) && (
+                    <Card className="p-6 bg-gradient-to-br from-[#13498a] to-[#0a1e3a] border-white/5">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold text-white">Quick Actions</h2>
+                            <WfhRequestButton />
+                        </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <Link
                                 href="/attendance"
@@ -365,9 +398,9 @@ export default function DashboardPage() {
                                 <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
                                     <CalendarCheck className="h-5 w-5 text-emerald-400" />
                                 </div>
-                                <div>
-                                    <p className="font-medium text-white">Mark Attendance</p>
-                                    <p className="text-xs text-slate-400">Log your attendance</p>
+                                <div className="min-w-0">
+                                    <p className="font-medium text-white truncate">Mark Attendance</p>
+                                    <p className="text-xs text-slate-400 truncate">Log your attendance</p>
                                 </div>
                             </Link>
                             <Link
@@ -377,21 +410,25 @@ export default function DashboardPage() {
                                 <div className="h-10 w-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
                                     <FileText className="h-5 w-5 text-amber-400" />
                                 </div>
-                                <div>
-                                    <p className="font-medium text-white">Submit Report</p>
-                                    <p className="text-xs text-slate-400">Daily work report</p>
+                                <div className="min-w-0">
+                                    <p className="font-medium text-white truncate">Submit Report</p>
+                                    <p className="text-xs text-slate-400 truncate">Daily work report</p>
                                 </div>
                             </Link>
                             <Link
                                 href="/projects"
                                 className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
                             >
-                                <div className="h-10 w-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
-                                    <FolderKanban className="h-5 w-5 text-violet-400" />
+                                <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                                    <FolderKanban className="h-5 w-5 text-blue-400" />
                                 </div>
-                                <div>
-                                    <p className="font-medium text-white">My Projects</p>
-                                    <p className="text-xs text-slate-400">View assigned projects</p>
+                                <div className="min-w-0">
+                                    <p className="font-medium text-white truncate">
+                                        {['MANAGER', 'TEAM_LEADER'].includes(user?.role || '') ? 'Project Allocation' : 'My Projects'}
+                                    </p>
+                                    <p className="text-xs text-slate-400 truncate">
+                                        {['MANAGER', 'TEAM_LEADER'].includes(user?.role || '') ? 'Assign to team' : 'View assigned projects'}
+                                    </p>
                                 </div>
                             </Link>
                         </div>

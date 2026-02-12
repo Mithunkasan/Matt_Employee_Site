@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/auth-context";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ActivityTracker } from "@/components/activity-tracker";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -14,6 +15,26 @@ export const metadata: Metadata = {
   title: "Matt Engineering Solutions - Project Management System",
   description: "Internal Project & Employee Management Web Application for Matt Engineering Solutions. Est. 2014",
   keywords: ["project management", "employee management", "attendance", "reports", "Matt Engineering Solutions"],
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+    viewportFit: "cover"
+  },
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#13498a" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a1e3a" }
+  ],
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Matt Engineering"
+  },
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  }
 };
 
 export default function RootLayout({
@@ -23,7 +44,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased bg-slate-50 dark:bg-slate-900`} suppressHydrationWarning>
+      <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -32,6 +53,7 @@ export default function RootLayout({
         >
           <AuthProvider>
             {children}
+            <ActivityTracker />
             <Toaster position="top-right" richColors />
           </AuthProvider>
         </ThemeProvider>

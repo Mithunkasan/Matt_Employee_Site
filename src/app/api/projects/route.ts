@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession, canManageProjects } from '@/lib/auth'
+import { getSession, canCreateProjects } from '@/lib/auth'
 import { createProjectSchema } from '@/lib/validations'
 
 // GET all projects
@@ -18,10 +18,23 @@ export async function GET(request: NextRequest) {
 
         const where: Record<string, unknown> = {}
 
-        // Employees can only see their own projects
+        // Employees see only assigned projects
         if (session.role === 'EMPLOYEE') {
             where.assignedToId = session.userId
-        } else if (assignedToId) {
+        }
+        // BAs, Managers, and Team Leaders see projects assigned to them, created by them,
+        // or assigned to their subordinates
+        else if (session.role === 'BA' || session.role === 'MANAGER' || session.role === 'TEAM_LEADER') {
+            where.OR = [
+                { assignedToId: session.userId },
+                { createdById: session.userId },
+                // Projects assigned to direct subordinates
+                { assignedTo: { managerId: session.userId } },
+                // Projects assigned to subordinates of subordinates (e.g. Manager seeing Employee projects via Team Leader)
+                { assignedTo: { manager: { managerId: session.userId } } }
+            ]
+        }
+        else if (assignedToId) {
             where.assignedToId = assignedToId
         }
 
@@ -73,8 +86,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        // Only Admin and PA can create projects
-        if (!canManageProjects(session.role)) {
+        // Only Admin, BA and PA can create projects
+        if (!canCreateProjects(session.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
