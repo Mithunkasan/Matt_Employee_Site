@@ -89,13 +89,13 @@ const navItems: NavItem[] = [
         roles: ['ADMIN', 'BA', 'MANAGER', 'EMPLOYEE'],
     },
     {
-        title: 'Attendance & Leave Report',
+        title: 'Attendance Report',
         href: '/attendance-report',
         icon: <Calendar className="h-5 w-5" />,
         roles: ['ADMIN', 'HR'],
     },
     {
-        title: 'Monthly Leave Report',
+        title: 'Leave Report',
         href: '/leave-report',
         icon: <FileText className="h-5 w-5" />,
         roles: ['ADMIN', 'HR'],

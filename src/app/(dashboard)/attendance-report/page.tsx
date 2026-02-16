@@ -318,89 +318,91 @@ export default function AttendanceReportPage() {
                     </div>
                 </Card>
 
-                <Card className="bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50 overflow-hidden">
-                    <ScrollArea className="w-full">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-slate-50 dark:bg-slate-900/50">
-                                    <TableHead className="sticky left-0 bg-slate-50 dark:bg-slate-900 min-w-[180px] border-r">Employee</TableHead>
-                                    <TableHead className="min-w-[100px]">Dept</TableHead>
-                                    {reportType === 'monthly' ? (
-                                        Array.from({ length: daysInReport }, (_, i) => (
-                                            <TableHead key={i} className="text-center min-w-[40px] text-[10px]">{i + 1}</TableHead>
-                                        ))
-                                    ) : (
-                                        Array.from({ length: 7 }, (_, i) => {
-                                            const d = new Date(selectedDate)
-                                            d.setDate(d.getDate() + i)
-                                            return <TableHead key={i} className="text-center min-w-[60px] text-[10px]">{d.toLocaleDateString('default', { weekday: 'short' })} {d.getDate()}</TableHead>
-                                        })
-                                    )}
-                                    <TableHead className="text-center min-w-[80px] border-l">Total</TableHead>
-                                    <TableHead className="text-center min-w-[60px]">P</TableHead>
-                                    <TableHead className="text-center min-w-[60px]">L</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {loading ? (
-                                    <TableRow><TableCell colSpan={daysInReport + 4} className="text-center py-20"><PageLoader /></TableCell></TableRow>
-                                ) : reportData.map((emp) => (
-                                    <TableRow key={emp.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20">
-                                        <TableCell
-                                            className="sticky left-0 bg-white dark:bg-slate-800 border-r font-medium cursor-pointer hover:text-violet-600"
-                                            onClick={() => handleEmployeeClick(emp)}
-                                        >
-                                            {emp.name}
-                                        </TableCell>
-                                        <TableCell className="text-xs text-slate-500">{emp.department || '-'}</TableCell>
+                <Card className="bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50 overflow-hidden flex-1">
+                    <ScrollArea className="w-full h-[calc(100vh-280px)] rounded-md border">
+                        <div className="w-max min-w-full">
+                            <Table className="whitespace-nowrap relative">
+                                <TableHeader className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-sm">
+                                    <TableRow className="bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                                        <TableHead className="sticky left-0 top-0 z-30 bg-slate-50 dark:bg-slate-900 min-w-[180px] border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Employee</TableHead>
+                                        <TableHead className="min-w-[100px] bg-slate-50 dark:bg-slate-900">Dept</TableHead>
                                         {reportType === 'monthly' ? (
-                                            Array.from({ length: daysInReport }, (_, i) => {
-                                                const day = i + 1
-                                                const dayData = emp.dailyData[day]
-                                                return (
-                                                    <TableCell key={i} className={`text-center p-0 border-r ${dayData ? 'cursor-pointer hover:bg-violet-50' : ''}`} onClick={() => dayData && dayData.status !== 'LEAVE' && handleCellClick(emp.name, day, dayData)}>
-                                                        <div className={cn(
-                                                            "py-3 px-1 text-[11px]",
-                                                            dayData?.status === 'LEAVE' && "bg-orange-50 dark:bg-orange-900/10 text-orange-600 dark:text-orange-400"
-                                                        )}>
-                                                            {dayData ? (
-                                                                dayData.status === 'LEAVE' ? <b>L</b> : <b>{dayData.totalHours.toFixed(1)}</b>
-                                                            ) : (
-                                                                <span className="text-slate-200">A</span>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                )
-                                            })
+                                            Array.from({ length: daysInReport }, (_, i) => (
+                                                <TableHead key={i} className="text-center min-w-[40px] text-[10px] bg-slate-50 dark:bg-slate-900">{i + 1}</TableHead>
+                                            ))
                                         ) : (
                                             Array.from({ length: 7 }, (_, i) => {
                                                 const d = new Date(selectedDate)
                                                 d.setDate(d.getDate() + i)
-                                                const day = d.getDate()
-                                                const dayData = emp.dailyData[day]
-                                                return (
-                                                    <TableCell key={i} className={`text-center p-0 border-r ${dayData ? 'cursor-pointer hover:bg-violet-50' : ''}`} onClick={() => dayData && dayData.status !== 'LEAVE' && handleCellClick(emp.name, day, dayData)}>
-                                                        <div className={cn(
-                                                            "py-3 px-1 text-[11px]",
-                                                            dayData?.status === 'LEAVE' && "bg-orange-50 dark:bg-orange-900/10 text-orange-600 dark:text-orange-400"
-                                                        )}>
-                                                            {dayData ? (
-                                                                dayData.status === 'LEAVE' ? <b>L</b> : <b>{dayData.totalHours.toFixed(1)}</b>
-                                                            ) : (
-                                                                <span className="text-slate-200">A</span>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                )
+                                                return <TableHead key={i} className="text-center min-w-[60px] text-[10px] bg-slate-50 dark:bg-slate-900">{d.toLocaleDateString('default', { weekday: 'short' })} {d.getDate()}</TableHead>
                                             })
                                         )}
-                                        <TableCell className="text-center font-bold border-l">{emp.totalMonthlyHours.toFixed(1)}h</TableCell>
-                                        <TableCell className="text-center font-bold text-emerald-600">{emp.presentDays}</TableCell>
-                                        <TableCell className="text-center font-bold text-orange-500">{emp.leaveDays || 0}</TableCell>
+                                        <TableHead className="text-center min-w-[80px] border-l bg-slate-50 dark:bg-slate-900">Total</TableHead>
+                                        <TableHead className="text-center min-w-[60px] bg-slate-50 dark:bg-slate-900">P</TableHead>
+                                        <TableHead className="text-center min-w-[60px] bg-slate-50 dark:bg-slate-900">L</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {loading ? (
+                                        <TableRow><TableCell colSpan={daysInReport + 4} className="text-center py-20"><PageLoader /></TableCell></TableRow>
+                                    ) : reportData.map((emp) => (
+                                        <TableRow key={emp.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20">
+                                            <TableCell
+                                                className="sticky left-0 bg-white dark:bg-slate-800 border-r font-medium cursor-pointer hover:text-violet-600 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] z-10"
+                                                onClick={() => handleEmployeeClick(emp)}
+                                            >
+                                                {emp.name}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-slate-500">{emp.department || '-'}</TableCell>
+                                            {reportType === 'monthly' ? (
+                                                Array.from({ length: daysInReport }, (_, i) => {
+                                                    const day = i + 1
+                                                    const dayData = emp.dailyData[day]
+                                                    return (
+                                                        <TableCell key={i} className={`text-center p-0 border-r ${dayData ? 'cursor-pointer hover:bg-violet-50' : ''}`} onClick={() => dayData && dayData.status !== 'LEAVE' && handleCellClick(emp.name, day, dayData)}>
+                                                            <div className={cn(
+                                                                "py-3 px-1 text-[11px]",
+                                                                dayData?.status === 'LEAVE' && "bg-orange-50 dark:bg-orange-900/10 text-orange-600 dark:text-orange-400"
+                                                            )}>
+                                                                {dayData ? (
+                                                                    dayData.status === 'LEAVE' ? <b>L</b> : <b>{dayData.totalHours.toFixed(1)}</b>
+                                                                ) : (
+                                                                    <span className="text-slate-200">A</span>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                    )
+                                                })
+                                            ) : (
+                                                Array.from({ length: 7 }, (_, i) => {
+                                                    const d = new Date(selectedDate)
+                                                    d.setDate(d.getDate() + i)
+                                                    const day = d.getDate()
+                                                    const dayData = emp.dailyData[day]
+                                                    return (
+                                                        <TableCell key={i} className={`text-center p-0 border-r ${dayData ? 'cursor-pointer hover:bg-violet-50' : ''}`} onClick={() => dayData && dayData.status !== 'LEAVE' && handleCellClick(emp.name, day, dayData)}>
+                                                            <div className={cn(
+                                                                "py-3 px-1 text-[11px]",
+                                                                dayData?.status === 'LEAVE' && "bg-orange-50 dark:bg-orange-900/10 text-orange-600 dark:text-orange-400"
+                                                            )}>
+                                                                {dayData ? (
+                                                                    dayData.status === 'LEAVE' ? <b>L</b> : <b>{dayData.totalHours.toFixed(1)}</b>
+                                                                ) : (
+                                                                    <span className="text-slate-200">A</span>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                    )
+                                                })
+                                            )}
+                                            <TableCell className="text-center font-bold border-l">{emp.totalMonthlyHours.toFixed(1)}h</TableCell>
+                                            <TableCell className="text-center font-bold text-emerald-600">{emp.presentDays}</TableCell>
+                                            <TableCell className="text-center font-bold text-orange-500">{emp.leaveDays || 0}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                         <ScrollBar orientation="horizontal" />
                     </ScrollArea>
                 </Card>
