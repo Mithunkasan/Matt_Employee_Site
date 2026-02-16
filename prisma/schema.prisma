@@ -32,7 +32,10 @@ model User {
   subordinates     User[]         @relation("ManagerSubordinates")
   lastActivityAt   DateTime?
   stuckKeyAlert    Boolean        @default(false)
+  designation      String?
 
+  @@index([role])
+  @@index([lastActivityAt])
   @@map("users")
 }
 
@@ -55,6 +58,8 @@ model Project {
   assignedTo   User?         @relation("AssignedTo", fields: [assignedToId], references: [id])
   createdBy    User          @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
 
+  @@index([assignedToId])
+  @@index([createdById])
   @@map("projects")
 }
 
@@ -74,6 +79,8 @@ model Task {
   assignedTo   User?         @relation(fields: [assignedToId], references: [id])
   dailyReports DailyReport[]
 
+  @@index([projectId])
+  @@index([assignedToId])
   @@map("tasks")
 }
 
@@ -91,6 +98,9 @@ model DailyReport {
   task        Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([projectId])
+  @@index([taskId])
   @@map("daily_reports")
 }
 
@@ -107,6 +117,7 @@ model Attendance {
   user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date], name: "userId_date")
+  @@index([date, status])
   @@map("attendances")
 }
 
@@ -156,7 +167,7 @@ model Notification {
   message   String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum Role {

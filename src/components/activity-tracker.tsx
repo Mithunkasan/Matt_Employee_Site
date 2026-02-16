@@ -81,7 +81,15 @@ export function ActivityTracker() {
     useEffect(() => {
         if (!user) return
 
-        const handleActivity = () => resetIdleTimer()
+        // Throttle the activity handler to run at most once per second
+        let lastActivityTime = 0
+        const handleActivity = () => {
+            const now = Date.now()
+            if (now - lastActivityTime > 1000) {
+                lastActivityTime = now
+                resetIdleTimer()
+            }
+        }
 
         window.addEventListener('mousemove', handleActivity)
         window.addEventListener('mousedown', handleActivity)

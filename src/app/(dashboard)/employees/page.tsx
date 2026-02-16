@@ -33,6 +33,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Card } from '@/components/ui/card'
 import { Plus, Search, Filter, MoreHorizontal, Mail, Phone, Edit, Trash2, UserPlus } from 'lucide-react'
 import {
@@ -51,6 +52,7 @@ interface Employee {
     role: string
     status: string
     department?: string | null
+    designation?: string | null
     phone?: string | null
     managerId?: string | null
     manager?: {
@@ -79,6 +81,7 @@ export default function EmployeesPage() {
         password: '',
         role: 'EMPLOYEE',
         department: '',
+        designation: '',
         phone: '',
         status: 'ACTIVE',
         managerId: '',
@@ -116,6 +119,7 @@ export default function EmployeesPage() {
             password: '',
             role: defaultRole,
             department: '',
+            designation: '',
             phone: '',
             status: 'ACTIVE',
             managerId: '',
@@ -131,6 +135,7 @@ export default function EmployeesPage() {
             password: '',
             role: employee.role,
             department: employee.department || '',
+            designation: employee.designation || '',
             phone: employee.phone || '',
             status: employee.status,
             managerId: employee.managerId || '',
@@ -333,109 +338,119 @@ export default function EmployeesPage() {
 
                 {/* Employees Table */}
                 <Card className="bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50 overflow-hidden">
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="border-slate-200 dark:border-slate-700/50">
-                                <TableHead>Employee</TableHead>
-                                <TableHead>Role</TableHead>
-                                <TableHead>Manager</TableHead>
-                                <TableHead>Department</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Joined</TableHead>
-                                {canManageEmployees && <TableHead className="text-right">Actions</TableHead>}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredEmployees.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400">
-                                        No employees found
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                filteredEmployees.map((employee) => (
-                                    <TableRow key={employee.id} className="border-slate-100 dark:border-slate-700/30">
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="h-10 w-10">
-                                                    <AvatarFallback className="bg-gradient-to-br from-violet-500 to-purple-600 text-white">
-                                                        {getInitials(employee.name)}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <div>
-                                                    <p className="font-medium text-slate-900 dark:text-white">
-                                                        {employee.name}
-                                                    </p>
-                                                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                        {employee.email}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className={getRoleColor(employee.role)}>
-                                                {employee.role}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-slate-600 dark:text-slate-300">
-                                            {employee.manager ? (
-                                                <div className="flex items-center gap-2">
-                                                    <Avatar className="h-6 w-6">
-                                                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs">
-                                                            {getInitials(employee.manager.name)}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                    <span className="text-sm">{employee.manager.name}</span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-slate-400">-</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-slate-600 dark:text-slate-300">
-                                            {employee.department || '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className={getStatusColor(employee.status)}>
-                                                {employee.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-slate-600 dark:text-slate-300">
-                                            {formatDate(employee.createdAt)}
-                                        </TableCell>
-                                        {canManageEmployees && (
-                                            <TableCell className="text-right">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon">
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => openEditDialog(employee)}>
-                                                            <Edit className="h-4 w-4 mr-2" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleToggleStatus(employee)}>
-                                                            {employee.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                                                        </DropdownMenuItem>
-                                                        {user?.role === 'ADMIN' && (
-                                                            <DropdownMenuItem
-                                                                onClick={() => handleDelete(employee)}
-                                                                className="text-red-500 focus:text-red-500"
-                                                            >
-                                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                                Delete
-                                                            </DropdownMenuItem>
-                                                        )}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
-                                        )}
+                    <ScrollArea className="w-full whitespace-nowrap rounded-md border">
+                        <div className="w-[1000px] md:w-full">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="border-slate-200 dark:border-slate-700/50">
+                                        <TableHead className="sticky left-0 bg-white dark:bg-slate-800 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[250px]">Employee</TableHead>
+                                        <TableHead className="min-w-[120px]">Role</TableHead>
+                                        <TableHead className="min-w-[150px]">Reporting Person</TableHead>
+                                        <TableHead className="min-w-[150px]">Department</TableHead>
+                                        <TableHead className="min-w-[100px]">Status</TableHead>
+                                        <TableHead className="min-w-[150px]">Registered</TableHead>
+                                        {canManageEmployees && <TableHead className="text-right min-w-[80px]">Actions</TableHead>}
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredEmployees.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400">
+                                                No employees found
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        filteredEmployees.map((employee) => (
+                                            <TableRow key={employee.id} className="border-slate-100 dark:border-slate-700/30">
+                                                <TableCell className="sticky left-0 bg-white dark:bg-slate-800 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] font-medium">
+                                                    <div className="flex items-center gap-3">
+                                                        <Avatar className="h-10 w-10">
+                                                            <AvatarFallback className="bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+                                                                {getInitials(employee.name)}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <p className="font-medium text-slate-900 dark:text-white truncate max-w-[150px]">
+                                                                {employee.name}
+                                                            </p>
+                                                            <p className="text-sm text-slate-500 dark:text-slate-400 truncate max-w-[150px]">
+                                                                {employee.email}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className={getRoleColor(employee.role)}>
+                                                        {employee.role}
+                                                    </Badge>
+                                                    {employee.designation && (
+                                                        <div className="text-xs text-slate-500 mt-1 truncate max-w-[120px]">
+                                                            {employee.designation}
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-slate-600 dark:text-slate-300">
+                                                    {employee.manager ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <Avatar className="h-6 w-6">
+                                                                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs">
+                                                                    {getInitials(employee.manager.name)}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <span className="text-sm">{employee.manager.name}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-slate-400">-</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-slate-600 dark:text-slate-300">
+                                                    {employee.department || '-'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className={getStatusColor(employee.status)}>
+                                                        {employee.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-slate-600 dark:text-slate-300">
+                                                    {formatDate(employee.createdAt)}
+                                                </TableCell>
+                                                {canManageEmployees && (
+                                                    <TableCell className="text-right">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="icon">
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem onClick={() => openEditDialog(employee)}>
+                                                                    <Edit className="h-4 w-4 mr-2" />
+                                                                    Edit
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleToggleStatus(employee)}>
+                                                                    {employee.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                                                                </DropdownMenuItem>
+                                                                {user?.role === 'ADMIN' && (
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => handleDelete(employee)}
+                                                                        className="text-red-500 focus:text-red-500"
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4 mr-2" />
+                                                                        Delete
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
+                                                )}
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                        <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
                 </Card>
             </div>
 
@@ -497,115 +512,235 @@ export default function EmployeesPage() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
+                            {/* Department Selection - MOVED UP */}
                             <div className="space-y-2">
-                                <Label htmlFor="role">Role</Label>
+                                <Label htmlFor="department">Domain (Team)</Label>
                                 <Select
-                                    value={formData.role}
-                                    onValueChange={(value) => setFormData({ ...formData, role: value })}
+                                    value={formData.department}
+                                    onValueChange={(value) => {
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            department: value,
+                                            role: '', // Reset role when department changes
+                                            designation: ''
+                                        }))
+                                    }}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue />
+                                        <SelectValue placeholder="Select Domain" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {user?.role === 'ADMIN' && (
-                                            <>
-                                                <SelectItem value="ADMIN">Admin</SelectItem>
-                                                <SelectItem value="HR">HR</SelectItem>
-                                                <SelectItem value="MANAGER">Manager</SelectItem>
-                                                <SelectItem value="TEAM_LEADER">Team Leader</SelectItem>
-                                                <SelectItem value="BA">Business Associate (BA)</SelectItem>
-                                                <SelectItem value="PA">Personal Assistant (PA)</SelectItem>
-                                                <SelectItem value="EMPLOYEE">Employee</SelectItem>
-                                            </>
-                                        )}
-                                        {user?.role === 'HR' && (
-                                            <>
-                                                <SelectItem value="BA">Business Associate (BA)</SelectItem>
-                                                <SelectItem value="MANAGER">Manager</SelectItem>
-                                                <SelectItem value="TEAM_LEADER">Team Leader</SelectItem>
-                                                <SelectItem value="EMPLOYEE">Employee</SelectItem>
-                                            </>
+                                        <SelectItem value="Fullstack Team">Fullstack Team</SelectItem>
+                                        <SelectItem value="Artificial Intelligence Team">Artificial Intelligence Team</SelectItem>
+                                        <SelectItem value="Data Analytics Team">Data Analytics Team</SelectItem>
+                                        <SelectItem value="Research & Development Team">Research & Development Team</SelectItem>
+                                        <SelectItem value="Hardware Development Team">Hardware Development Team</SelectItem>
+                                        <SelectItem value="Project Development Team">Project Development Team</SelectItem>
+                                        <SelectItem value="Digital Marketing Team">Digital Marketing Team</SelectItem>
+                                        {/* Option for System roles if needed */}
+                                        {(user?.role === 'ADMIN' || user?.role === 'HR') && (
+                                            <SelectItem value="Administration">Administration / Other</SelectItem>
                                         )}
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            {/* Manager Selection for TEAM_LEADER - Only show when creating */}
-                            {formData.role === 'TEAM_LEADER' && !editingEmployee && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="managerId">Manager *</Label>
+                            <div className="space-y-2">
+                                <Label htmlFor="role">Role</Label>
+                                <Select
+                                    value={formData.designation ? `${formData.role}:${formData.designation}` : formData.role}
+                                    onValueChange={(value) => {
+                                        if (value.includes(':')) {
+                                            const [role, designation] = value.split(':')
+                                            setFormData({ ...formData, role, designation })
+                                        } else {
+                                            setFormData({ ...formData, role: value, designation: '' })
+                                        }
+                                    }}
+                                    disabled={!formData.department && user?.role !== 'ADMIN'}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select Role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(() => {
+                                            const dept = formData.department
+                                            const sysRole = user?.role
+
+                                            // Helper to render Item
+                                            const Item = ({ r, d, l }: { r: string, d: string, l: string }) => (
+                                                <SelectItem value={`${r}:${d}`}>{l}</SelectItem>
+                                            )
+
+                                            if (!dept || dept === 'Administration') {
+                                                return (
+                                                    <>
+                                                        {sysRole === 'ADMIN' && <SelectItem value="ADMIN">Admin</SelectItem>}
+                                                        {sysRole === 'ADMIN' && <SelectItem value="HR">HR</SelectItem>}
+                                                        <SelectItem value="BA">Business Associate (BA)</SelectItem>
+                                                        <SelectItem value="PA">Personal Assistant (PA)</SelectItem>
+                                                        <SelectItem value="MANAGER:Manager">Manager</SelectItem>
+                                                    </>
+                                                )
+                                            }
+
+                                            if (dept === 'Fullstack Team') {
+                                                return (
+                                                    <>
+                                                        <Item r="MANAGER" d="Manager" l="Manager" />
+                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
+                                                        <Item r="EMPLOYEE" d="Developer" l="Developer" />
+                                                    </>
+                                                )
+                                            }
+
+                                            if (dept === 'Artificial Intelligence Team') {
+                                                return (
+                                                    <>
+                                                        {/* AI shares Manager with Fullstack, usually meaning they report to FS Manager. 
+                                                            Prompt says "In addition, it includes Team Leaders and Developers". 
+                                                            Implies no AI Manager creation, or they use FS Manager. */}
+                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
+                                                        <Item r="EMPLOYEE" d="Developer" l="Developer" />
+                                                    </>
+                                                )
+                                            }
+
+                                            if (dept === 'Data Analytics Team') {
+                                                return (
+                                                    <>
+                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
+                                                        <Item r="EMPLOYEE" d="Data Analyst" l="Data Analyst" />
+                                                    </>
+                                                )
+                                            }
+
+                                            if (dept === 'Research & Development Team') {
+                                                return (
+                                                    <>
+                                                        <Item r="MANAGER" d="Manager" l="Manager" />
+                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
+                                                        {/* Team Coordinator - Mapping to Employee for now, or TL? 
+                                                            Prompt order: Mgr, TL, Coord, Analyst. 
+                                                            Let's map Coord to TEAM_LEADER (Junior) or EMPLOYEE. 
+                                                            Let's use EMPLOYEE to avoid permission bloat unless requested. */}
+                                                        <Item r="EMPLOYEE" d="Team Coordinator" l="Team Coordinator" />
+                                                        <Item r="EMPLOYEE" d="Research Analyst" l="Research Analyst" />
+                                                    </>
+                                                )
+                                            }
+
+                                            if (dept === 'Hardware Development Team') {
+                                                return (
+                                                    <>
+                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
+                                                        <Item r="EMPLOYEE" d="Hardware Developer" l="Hardware Developer" />
+                                                    </>
+                                                )
+                                            }
+
+                                            if (dept === 'Project Development Team') {
+                                                return (
+                                                    <>
+                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
+                                                        <Item r="EMPLOYEE" d="Developer" l="Developer" />
+                                                    </>
+                                                )
+                                            }
+
+                                            if (dept === 'Digital Marketing Team') {
+                                                return (
+                                                    <>
+                                                        <Item r="MANAGER" d="Manager" l="Manager" />
+                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
+                                                        <Item r="EMPLOYEE" d="Marketing Executive" l="Marketing Executive" />
+                                                    </>
+                                                )
+                                            }
+
+                                            return <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                                        })()}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Designation (Editable, auto-filled) */}
+                            <div className="space-y-2">
+                                <Label htmlFor="designation">Designation (Job Title)</Label>
+                                <Input
+                                    id="designation"
+                                    value={formData.designation}
+                                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                                    placeholder="e.g. Senior Developer"
+                                />
+                            </div>
+
+                            {/* Manual Reporting Manager Selection */}
+                            {(formData.role !== 'ADMIN' && formData.role !== 'HR') && (
+                                <div className="space-y-2 col-span-2">
+                                    <Label htmlFor="managerId">Reporting To (Manager/Leader) *</Label>
                                     <Select
                                         value={formData.managerId}
                                         onValueChange={(value) => setFormData({ ...formData, managerId: value })}
-                                        required
                                     >
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Select Manager" />
+                                            <SelectValue placeholder="Select Reporting Person" />
                                         </SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value="no-manager">-- None --</SelectItem>
                                             {employees
-                                                .filter(emp => emp.role === 'MANAGER' && emp.status === 'ACTIVE')
+                                                .filter(emp => {
+                                                    // Filter logic based on current role and department
+                                                    const targetRole = formData.role
+                                                    const targetDept = formData.department
+
+                                                    // 1. Managers report to Admin (or HR optionally, but user said "only show admin")
+                                                    if (targetRole === 'MANAGER') {
+                                                        return emp.role === 'ADMIN'
+                                                    }
+
+                                                    // 2. Team Leaders report to Managers of the SAME Domain (or Admin if none)
+                                                    if (targetRole === 'TEAM_LEADER') {
+                                                        // Always allow reporting to Admin
+                                                        if (emp.role === 'ADMIN') return true
+
+                                                        // Otherwise, must be Manager
+                                                        if (emp.role !== 'MANAGER') return false
+
+                                                        // Special Case: AI Team shares Fullstack Manager
+                                                        if (targetDept === 'Artificial Intelligence Team') {
+                                                            return emp.department === 'Artificial Intelligence Team' || emp.department === 'Fullstack Team'
+                                                        }
+
+                                                        // Default: Match Department
+                                                        return emp.department === targetDept
+                                                    }
+
+                                                    // 3. Employees report to Team Leaders (or Coordinators) of the SAME Domain
+                                                    if (targetRole === 'EMPLOYEE' || targetRole === 'BA' || targetRole === 'PA') {
+                                                        // R&D Special: Analysts can report to Team Leaders or Coordinators (who are likely TLs or Employees with permissions)
+                                                        // For now, assuming standard Employee -> TL relationship
+                                                        if (emp.role !== 'TEAM_LEADER' && emp.role !== 'MANAGER') return false // Fallback to Manager if no TL
+
+                                                        // Match Department
+                                                        if (targetDept === 'Artificial Intelligence Team') {
+                                                            return emp.department === 'Artificial Intelligence Team' || emp.department === 'Fullstack Team'
+                                                        }
+                                                        return emp.department === targetDept
+                                                    }
+
+                                                    return false
+                                                })
                                                 .map(emp => (
                                                     <SelectItem key={emp.id} value={emp.id}>
-                                                        {emp.name}
+                                                        {emp.name} ({emp.designation || emp.role})
                                                     </SelectItem>
                                                 ))}
                                         </SelectContent>
                                     </Select>
                                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        Team Leader must be assigned to a Manager
+                                        Manually assign the reporting hierarchy.
                                     </p>
-                                </div>
-                            )}
-
-                            {/* Manager Selection for EMPLOYEE - Only show when creating */}
-                            {formData.role === 'EMPLOYEE' && !editingEmployee && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="managerId">Team Leader (Manager) *</Label>
-                                    <Select
-                                        value={formData.managerId}
-                                        onValueChange={(value) => setFormData({ ...formData, managerId: value })}
-                                        required
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select Team Leader" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {employees
-                                                .filter(emp => emp.role === 'TEAM_LEADER' && emp.status === 'ACTIVE')
-                                                .map(emp => (
-                                                    <SelectItem key={emp.id} value={emp.id}>
-                                                        {emp.name}
-                                                    </SelectItem>
-                                                ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        Employee must be assigned to a Team Leader
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Department - Only show when not selecting manager */}
-                            {(formData.role !== 'EMPLOYEE' && formData.role !== 'TEAM_LEADER' || editingEmployee) && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="department">Department</Label>
-                                    <Select
-                                        value={formData.department}
-                                        onValueChange={(value) => setFormData({ ...formData, department: value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select Department" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Web Development (React)">Web Development (React)</SelectItem>
-                                            <SelectItem value="Web Development (Python)">Web Development (Python)</SelectItem>
-                                            <SelectItem value="Machine Learning & Deep Learning">Machine Learning & Deep Learning</SelectItem>
-                                            <SelectItem value="Research Writing">Research Writing</SelectItem>
-                                            <SelectItem value="R&D">R&D</SelectItem>
-                                            <SelectItem value="Digital Marketing">Digital Marketing</SelectItem>
-                                        </SelectContent>
-                                    </Select>
                                 </div>
                             )}
                         </div>

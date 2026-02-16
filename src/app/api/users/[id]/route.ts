@@ -27,8 +27,18 @@ export async function GET(request: NextRequest, { params }: Params) {
                 role: true,
                 status: true,
                 department: true,
+                designation: true,
                 phone: true,
+                managerId: true,
                 createdAt: true,
+                manager: {
+                    select: {
+                        id: true,
+                        name: true,
+                        role: true,
+                        designation: true,
+                    }
+                },
                 _count: {
                     select: {
                         assignedProjects: true,
@@ -113,9 +123,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
             }
         }
 
-        // Only Admin/HR can change status
-        if (updateData.status && !canManageEmployees(session.role)) {
+        // Only Admin/HR can change status and organizational details
+        if (!canManageEmployees(session.role)) {
             delete updateData.status
+            delete updateData.department
+            delete updateData.designation
+            delete updateData.managerId
         }
 
         const user = await prisma.user.update({
@@ -128,7 +141,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
                 role: true,
                 status: true,
                 department: true,
+                designation: true,
                 phone: true,
+                managerId: true,
+                createdAt: true,
             },
         })
 

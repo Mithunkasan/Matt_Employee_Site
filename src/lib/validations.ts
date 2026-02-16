@@ -12,6 +12,7 @@ export const createUserSchema = z.object({
     password: z.string().min(6, 'Password must be at least 6 characters'),
     role: z.enum(['ADMIN', 'HR', 'MANAGER', 'TEAM_LEADER', 'BA', 'PA', 'EMPLOYEE']),
     department: z.string().optional(),
+    designation: z.string().optional(),
     phone: z.string().optional(),
     managerId: z.string().optional(),
 })
@@ -22,7 +23,9 @@ export const updateUserSchema = z.object({
     role: z.enum(['ADMIN', 'HR', 'MANAGER', 'TEAM_LEADER', 'BA', 'PA', 'EMPLOYEE']).optional(),
     status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
     department: z.string().optional(),
+    designation: z.string().optional(),
     phone: z.string().optional(),
+    managerId: z.string().optional(),
 })
 
 // Project schemas
