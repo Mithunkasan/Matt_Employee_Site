@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         if (projectId) where.projectId = projectId
 
         // Employees and other roles see their assigned tasks
-        if (['EMPLOYEE', 'BA', 'MANAGER', 'TEAM_LEADER'].includes(session.role)) {
+        if (['EMPLOYEE', 'BA', 'MANAGER', 'TEAM_LEADER', 'TEAM_COORDINATOR', 'INTERN'].includes(session.role)) {
             where.assignedToId = session.userId
         } else if (assignedToId) {
             where.assignedToId = assignedToId
@@ -72,6 +72,24 @@ export async function POST(request: NextRequest) {
         }
 
         const { title, description, priority, projectId, assignedToId, startDate, endDate } = validation.data
+
+        // Hierarchy enforcement
+        if (assignedToId && !['ADMIN', 'HR'].includes(session.role)) {
+            const assignee = await prisma.user.findUnique({
+                where: { id: assignedToId },
+                select: { role: true }
+            })
+
+            if (session.role === 'MANAGER') {
+                if (assignee?.role !== 'TEAM_LEADER') {
+                    return NextResponse.json({ error: 'Managers can only assign tasks to Team Leaders' }, { status: 400 })
+                }
+            } else if (session.role === 'TEAM_LEADER') {
+                if (!['TEAM_COORDINATOR', 'EMPLOYEE', 'INTERN'].includes(assignee?.role || '')) {
+                    return NextResponse.json({ error: 'Team Leaders can only assign tasks to Team Coordinators, Employees, or Interns' }, { status: 400 })
+                }
+            }
+        }
 
         const task = await prisma.task.create({
             data: {

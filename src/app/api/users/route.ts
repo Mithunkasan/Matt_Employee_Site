@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
                     }
                 }
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { name: 'asc' },
         })
 
         return NextResponse.json({ users })
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
         // Determine manager
         let finalManagerId = undefined
 
-        if (managerId) {
+        if (managerId && managerId !== "Administrative") {
             // Manual assignment - Trust the user but verify existence
             const manager = await prisma.user.findUnique({
                 where: { id: managerId },
@@ -158,6 +158,8 @@ export async function POST(request: NextRequest) {
                 )
             }
             finalManagerId = managerId
+        } else if (managerId === "Administrative") {
+            finalManagerId = undefined
         } else {
             // Auto assignment logic (fallback)
             if (session.role === 'HR') {

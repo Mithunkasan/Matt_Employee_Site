@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 
 // Role type matching Prisma schema
-export type Role = 'ADMIN' | 'HR' | 'BA' | 'MANAGER' | 'TEAM_LEADER' | 'PA' | 'EMPLOYEE'
+export type Role = 'ADMIN' | 'HR' | 'BA' | 'PA' | 'MANAGER' | 'TEAM_LEADER' | 'TEAM_COORDINATOR' | 'EMPLOYEE' | 'INTERN'
 
 const secretKey = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
 const key = new TextEncoder().encode(secretKey)

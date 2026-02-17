@@ -18,11 +18,12 @@ export async function GET(request: NextRequest) {
 
         const where: Record<string, any> = {}
 
-        // Employees can only see their own leaves
-        if (session.role === 'EMPLOYEE') {
+        // Visibility restriction: Only respective person, Admin, and HR can see details
+        const isAdminOrHR = session.role === 'ADMIN' || session.role === 'HR'
+        if (!isAdminOrHR) {
             where.userId = session.userId
         } else {
-            // Admin/HR/BA can see all (or filtered)
+            // Admin/HR can see all (or filtered)
             if (userId) where.userId = userId
             if (status) where.status = status
         }

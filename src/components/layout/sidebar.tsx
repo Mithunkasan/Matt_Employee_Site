@@ -86,7 +86,7 @@ const navItems: NavItem[] = [
         title: 'Reports',
         href: '/reports',
         icon: <FileText className="h-5 w-5" />,
-        roles: ['ADMIN', 'BA', 'MANAGER', 'EMPLOYEE'],
+        roles: ['ADMIN', 'BA', 'MANAGER', 'TEAM_LEADER', 'EMPLOYEE'],
     },
     {
         title: 'Attendance Report',

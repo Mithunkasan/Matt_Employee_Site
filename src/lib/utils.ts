@@ -63,7 +63,9 @@ export function getRoleColor(role: string): string {
     BA: 'bg-[#13498a]/10 text-[#13498a] border-[#13498a]/20',
     MANAGER: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
     TEAM_LEADER: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
+    TEAM_COORDINATOR: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
     EMPLOYEE: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
+    INTERN: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
   }
   return colors[role] || 'bg-slate-500/10 text-slate-500 border-slate-500/20'
 }
