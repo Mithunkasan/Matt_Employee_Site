@@ -17,12 +17,16 @@ export async function GET(request: NextRequest) {
         const startDate = searchParams.get('startDate')
         const endDate = searchParams.get('endDate')
 
-        const where: Record<string, unknown> = {}
+        const filter = searchParams.get('filter')
 
-        // Employees can only see their own reports. BAs can see all if they have access, 
-        // but if we want them to report as well, we might want to let them filter.
-        // Actually, let's allow BAs to see all reports but restrict Employees.
-        if (session.role === 'EMPLOYEE') {
+        const where: Record<string, any> = {}
+
+        if (filter === 'received') {
+            // Reports submitted to the current user (where current user is the manager)
+            where.user = {
+                managerId: session.userId
+            }
+        } else if (session.role === 'EMPLOYEE' || session.role === 'INTERN') {
             where.userId = session.userId
         } else if (userId) {
             where.userId = userId
@@ -60,6 +64,12 @@ export async function GET(request: NextRequest) {
                         id: true,
                         title: true,
                     }
+                },
+                repliedBy: {
+                    select: {
+                        id: true,
+                        name: true,
+                    }
                 }
             },
             orderBy: { date: 'desc' },
@@ -87,8 +97,9 @@ export async function POST(request: NextRequest) {
         const validation = createReportSchema.safeParse(body)
 
         if (!validation.success) {
+            console.log('Report validation failed:', validation.error.format())
             return NextResponse.json(
-                { error: 'Invalid input', details: validation.error.issues },
+                { error: 'Invalid input', details: validation.error.format() },
                 { status: 400 }
             )
         }

@@ -22,15 +22,15 @@ export async function GET(request: NextRequest) {
         if (session.role === 'EMPLOYEE') {
             where.assignedToId = session.userId
         }
-        // BAs, Managers, and Team Leaders see projects assigned to them, created by them,
+        // BAs, Managers, Team Leaders and PAs see projects assigned to them, created by them,
         // or assigned to their subordinates
-        else if (session.role === 'BA' || session.role === 'MANAGER' || session.role === 'TEAM_LEADER') {
+        else if (['BA', 'MANAGER', 'TEAM_LEADER', 'PA'].includes(session.role)) {
             where.OR = [
                 { assignedToId: session.userId },
                 { createdById: session.userId },
                 // Projects assigned to direct subordinates
                 { assignedTo: { managerId: session.userId } },
-                // Projects assigned to subordinates of subordinates (e.g. Manager seeing Employee projects via Team Leader)
+                // Projects assigned to subordinates of subordinates
                 { assignedTo: { manager: { managerId: session.userId } } }
             ]
         }

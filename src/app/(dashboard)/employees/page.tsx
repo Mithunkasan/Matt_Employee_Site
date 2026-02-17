@@ -129,6 +129,13 @@ export default function EmployeesPage() {
 
     const openEditDialog = (employee: Employee) => {
         setEditingEmployee(employee)
+
+        // Determine if it should show "Administrative" in the dropdown
+        let managerIdValue = employee.managerId || ''
+        if (!employee.managerId && employee.department === 'Administration') {
+            managerIdValue = 'Administrative'
+        }
+
         setFormData({
             name: employee.name,
             email: employee.email,
@@ -138,7 +145,7 @@ export default function EmployeesPage() {
             designation: employee.designation || '',
             phone: employee.phone || '',
             status: employee.status,
-            managerId: employee.managerId || '',
+            managerId: managerIdValue,
         })
         setDialogOpen(true)
     }
@@ -316,6 +323,7 @@ export default function EmployeesPage() {
                             <SelectItem value="TEAM_LEADER">Team Leader</SelectItem>
                             <SelectItem value="BA">Business Associate</SelectItem>
                             <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                            <SelectItem value="INTERN">Intern</SelectItem>
                         </SelectContent>
                     </Select>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -390,7 +398,9 @@ export default function EmployeesPage() {
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-slate-600 dark:text-slate-300">
-                                                    {employee.manager ? (
+                                                    {(employee.managerId === 'Administrative' || (!employee.manager && employee.department === 'Administration')) ? (
+                                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Administrative</span>
+                                                    ) : employee.manager ? (
                                                         <div className="flex items-center gap-2">
                                                             <Avatar className="h-6 w-6">
                                                                 <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs">
@@ -550,12 +560,34 @@ export default function EmployeesPage() {
                                 <Select
                                     value={formData.designation ? `${formData.role}:${formData.designation}` : formData.role}
                                     onValueChange={(value) => {
+                                        let role = value
+                                        let designation = formData.designation
+                                        let managerId = formData.managerId
+
                                         if (value.includes(':')) {
-                                            const [role, designation] = value.split(':')
-                                            setFormData({ ...formData, role, designation })
+                                            const parts = value.split(':')
+                                            role = parts[0]
+                                            designation = parts[1]
                                         } else {
-                                            setFormData({ ...formData, role: value, designation: '' })
+                                            role = value
+                                            // Don't reset designation if manually typed, but for BA/PA keep it empty unless we auto-fill
                                         }
+
+                                        // Auto-fill for Administrative roles
+                                        if (formData.department === 'Administration' || formData.department === 'Administration / Other') {
+                                            if (role === 'HR') {
+                                                designation = 'HR Manager'
+                                                managerId = 'Administrative'
+                                            } else if (role === 'BA') {
+                                                designation = 'Business Associate'
+                                                managerId = 'Administrative'
+                                            } else if (role === 'PA') {
+                                                designation = 'Personal Assistant'
+                                                managerId = 'Administrative'
+                                            }
+                                        }
+
+                                        setFormData({ ...formData, role, designation, managerId })
                                     }}
                                     disabled={!formData.department && user?.role !== 'ADMIN'}
                                 >
@@ -575,10 +607,10 @@ export default function EmployeesPage() {
                                             if (!dept || dept === 'Administration') {
                                                 return (
                                                     <>
-                                                        {sysRole === 'ADMIN' && <SelectItem value="ADMIN">Admin</SelectItem>}
-                                                        {sysRole === 'ADMIN' && <SelectItem value="HR">HR</SelectItem>}
-                                                        <SelectItem value="BA">Business Associate (BA)</SelectItem>
-                                                        <SelectItem value="PA">Personal Assistant (PA)</SelectItem>
+                                                        {sysRole === 'ADMIN' && <SelectItem value="ADMIN:Admin">Admin</SelectItem>}
+                                                        {sysRole === 'ADMIN' && <SelectItem value="HR:HR Manager">HR</SelectItem>}
+                                                        <SelectItem value="BA:Business Associate">Business Associate (BA)</SelectItem>
+                                                        <SelectItem value="PA:Personal Assistant">Personal Assistant (PA)</SelectItem>
                                                         <SelectItem value="MANAGER:Manager">Manager</SelectItem>
                                                     </>
                                                 )
@@ -589,7 +621,9 @@ export default function EmployeesPage() {
                                                     <>
                                                         <Item r="MANAGER" d="Manager" l="Manager" />
                                                         <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
+                                                        <Item r="TEAM_COORDINATOR" d="Team Coordinator" l="Team Coordinator" />
                                                         <Item r="EMPLOYEE" d="Developer" l="Developer" />
+                                                        <Item r="INTERN" d="Intern" l="Intern" />
                                                     </>
                                                 )
                                             }
@@ -602,6 +636,7 @@ export default function EmployeesPage() {
                                                             Implies no AI Manager creation, or they use FS Manager. */}
                                                         <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
                                                         <Item r="EMPLOYEE" d="Developer" l="Developer" />
+                                                        <Item r="INTERN" d="Intern" l="Intern" />
                                                     </>
                                                 )
                                             }
@@ -610,7 +645,9 @@ export default function EmployeesPage() {
                                                 return (
                                                     <>
                                                         <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
+                                                        <Item r="TEAM_COORDINATOR" d="Team Coordinator" l="Team Coordinator" />
                                                         <Item r="EMPLOYEE" d="Data Analyst" l="Data Analyst" />
+                                                        <Item r="INTERN" d="Intern" l="Intern" />
                                                     </>
                                                 )
                                             }
@@ -635,6 +672,7 @@ export default function EmployeesPage() {
                                                     <>
                                                         <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
                                                         <Item r="EMPLOYEE" d="Hardware Developer" l="Hardware Developer" />
+                                                        <Item r="INTERN" d="Intern" l="Intern" />
                                                     </>
                                                 )
                                             }
@@ -644,6 +682,7 @@ export default function EmployeesPage() {
                                                     <>
                                                         <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
                                                         <Item r="EMPLOYEE" d="Developer" l="Developer" />
+                                                        <Item r="INTERN" d="Intern" l="Intern" />
                                                     </>
                                                 )
                                             }
@@ -654,6 +693,7 @@ export default function EmployeesPage() {
                                                         <Item r="MANAGER" d="Manager" l="Manager" />
                                                         <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
                                                         <Item r="EMPLOYEE" d="Marketing Executive" l="Marketing Executive" />
+                                                        <Item r="INTERN" d="Intern" l="Intern" />
                                                     </>
                                                 )
                                             }
@@ -676,7 +716,7 @@ export default function EmployeesPage() {
                             </div>
 
                             {/* Manual Reporting Manager Selection */}
-                            {(formData.role !== 'ADMIN' && formData.role !== 'HR') && (
+                            {(formData.role !== 'ADMIN') && (
                                 <div className="space-y-2 col-span-2">
                                     <Label htmlFor="managerId">Reporting To (Manager/Leader) *</Label>
                                     <Select
@@ -688,6 +728,7 @@ export default function EmployeesPage() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="no-manager">-- None --</SelectItem>
+                                            <SelectItem value="Administrative">Administrative</SelectItem>
                                             {employees
                                                 .filter(emp => {
                                                     // Filter logic based on current role and department
@@ -717,7 +758,7 @@ export default function EmployeesPage() {
                                                     }
 
                                                     // 3. Employees report to Team Leaders (or Coordinators) of the SAME Domain
-                                                    if (targetRole === 'EMPLOYEE' || targetRole === 'BA' || targetRole === 'PA') {
+                                                    if (targetRole === 'EMPLOYEE' || targetRole === 'BA' || targetRole === 'PA' || targetRole === 'INTERN') {
                                                         // R&D Special: Analysts can report to Team Leaders or Coordinators (who are likely TLs or Employees with permissions)
                                                         // For now, assuming standard Employee -> TL relationship
                                                         if (emp.role !== 'TEAM_LEADER' && emp.role !== 'MANAGER') return false // Fallback to Manager if no TL

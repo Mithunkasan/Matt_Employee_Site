@@ -10,7 +10,7 @@ export const createUserSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
     email: z.string().email('Invalid email address'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
-    role: z.enum(['ADMIN', 'HR', 'MANAGER', 'TEAM_LEADER', 'BA', 'PA', 'EMPLOYEE']),
+    role: z.enum(['ADMIN', 'HR', 'MANAGER', 'TEAM_LEADER', 'TEAM_COORDINATOR', 'BA', 'PA', 'EMPLOYEE', 'INTERN']),
     department: z.string().optional(),
     designation: z.string().optional(),
     phone: z.string().optional(),
@@ -20,7 +20,7 @@ export const createUserSchema = z.object({
 export const updateUserSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters').optional(),
     email: z.string().email('Invalid email address').optional(),
-    role: z.enum(['ADMIN', 'HR', 'MANAGER', 'TEAM_LEADER', 'BA', 'PA', 'EMPLOYEE']).optional(),
+    role: z.enum(['ADMIN', 'HR', 'MANAGER', 'TEAM_LEADER', 'TEAM_COORDINATOR', 'BA', 'PA', 'EMPLOYEE', 'INTERN']).optional(),
     status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
     department: z.string().optional(),
     designation: z.string().optional(),
@@ -55,7 +55,7 @@ export const updateProjectSchema = z.object({
 export const createReportSchema = z.object({
     projectId: z.string().min(1, 'Project is required'),
     taskId: z.string().optional(),
-    reportText: z.string().min(10, 'Report must be at least 10 characters'),
+    reportText: z.string().min(3, 'Report must be at least 3 characters'),
     hoursWorked: z.number().min(0).max(24).optional(),
     date: z.string().optional(),
 })

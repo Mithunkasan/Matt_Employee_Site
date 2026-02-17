@@ -17,17 +17,12 @@ export async function GET(request: NextRequest) {
 
         const where: Record<string, unknown> = {}
 
-        // Employees can only see their own WFH requests
-        if (session.role === 'EMPLOYEE') {
+        // Visibility restriction: Only respective person, Admin, and HR can see details
+        const isAdminOrHR = session.role === 'ADMIN' || session.role === 'HR'
+        if (!isAdminOrHR) {
             where.userId = session.userId
-        } else if (session.role !== 'ADMIN' && session.role !== 'HR' && session.role !== 'BA') {
-            // Other roles also restricted to their own?
-            // User requested Employee, HR, BA dashboard support.
-            // HR and BA might need to see all or their own.
-            // Usually Admin/HR/BA see all for approval/monitoring.
-            if (userId) where.userId = userId
-            if (status) where.status = status
         } else {
+            // Admin/HR can see all (or filtered)
             if (userId) where.userId = userId
             if (status) where.status = status
         }
