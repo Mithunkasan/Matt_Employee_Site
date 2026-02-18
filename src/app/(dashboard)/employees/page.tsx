@@ -587,6 +587,17 @@ export default function EmployeesPage() {
                                             }
                                         }
 
+                                        // Auto-fill manager for Research Analyst in R&D
+                                        if (formData.department === 'Research & Development Team' && designation === 'Research Analyst') {
+                                            const coordinator = employees.find(emp =>
+                                                emp.department === 'Research & Development Team' &&
+                                                (emp.designation === 'Team Coordinator' || emp.role === 'TEAM_COORDINATOR')
+                                            )
+                                            if (coordinator) {
+                                                managerId = coordinator.id
+                                            }
+                                        }
+
                                         setFormData({ ...formData, role, designation, managerId })
                                     }}
                                     disabled={!formData.department && user?.role !== 'ADMIN'}
@@ -657,11 +668,7 @@ export default function EmployeesPage() {
                                                     <>
                                                         <Item r="MANAGER" d="Manager" l="Manager" />
                                                         <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
-                                                        {/* Team Coordinator - Mapping to Employee for now, or TL? 
-                                                            Prompt order: Mgr, TL, Coord, Analyst. 
-                                                            Let's map Coord to TEAM_LEADER (Junior) or EMPLOYEE. 
-                                                            Let's use EMPLOYEE to avoid permission bloat unless requested. */}
-                                                        <Item r="EMPLOYEE" d="Team Coordinator" l="Team Coordinator" />
+                                                        <Item r="TEAM_COORDINATOR" d="Team Coordinator" l="Team Coordinator" />
                                                         <Item r="EMPLOYEE" d="Research Analyst" l="Research Analyst" />
                                                     </>
                                                 )
@@ -757,11 +764,18 @@ export default function EmployeesPage() {
                                                         return emp.department === targetDept
                                                     }
 
-                                                    // 3. Employees report to Team Leaders (or Coordinators) of the SAME Domain
+                                                    // 3. Team Coordinators report to Managers or Team Leaders of the SAME Domain
+                                                    if (targetRole === 'TEAM_COORDINATOR') {
+                                                        // Always allow reporting to Admin
+                                                        if (emp.role === 'ADMIN') return true
+                                                        if (emp.role !== 'MANAGER' && emp.role !== 'TEAM_LEADER') return false
+                                                        return emp.department === targetDept
+                                                    }
+
+                                                    // 4. Employees report to Team Leaders (or Coordinators) of the SAME Domain
                                                     if (targetRole === 'EMPLOYEE' || targetRole === 'BA' || targetRole === 'PA' || targetRole === 'INTERN') {
-                                                        // R&D Special: Analysts can report to Team Leaders or Coordinators (who are likely TLs or Employees with permissions)
-                                                        // For now, assuming standard Employee -> TL relationship
-                                                        if (emp.role !== 'TEAM_LEADER' && emp.role !== 'MANAGER') return false // Fallback to Manager if no TL
+                                                        // R&D Special: Analysts can report to Team Leaders or Coordinators
+                                                        if (emp.role !== 'TEAM_LEADER' && emp.role !== 'MANAGER' && emp.role !== 'TEAM_COORDINATOR') return false
 
                                                         // Match Department
                                                         if (targetDept === 'Artificial Intelligence Team') {
