@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/table'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Card } from '@/components/ui/card'
-import { Plus, Search, Filter, MoreHorizontal, Mail, Phone, Edit, Trash2, UserPlus } from 'lucide-react'
+import { Plus, Search, Filter, MoreHorizontal, Mail, Phone, Edit, Trash2, UserPlus, Eye, EyeOff } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -73,6 +73,7 @@ export default function EmployeesPage() {
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
     const [saving, setSaving] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
 
     // Form state
     const [formData, setFormData] = useState({
@@ -111,7 +112,7 @@ export default function EmployeesPage() {
         setEditingEmployee(null)
         // Set default role based on user's role
         let defaultRole = 'BA'
-        if (user?.role === 'ADMIN') defaultRole = 'EMPLOYEE'
+        if (user?.role === 'ADMIN' || user?.role === 'HR') defaultRole = 'EMPLOYEE'
 
         setFormData({
             name: '',
@@ -466,378 +467,280 @@ export default function EmployeesPage() {
 
             {/* Create/Edit Dialog */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {editingEmployee ? 'Update employee details' :
-                                user?.role === 'HR' ? 'Register a new Manager' :
-                                    user?.role === 'MANAGER' ? 'Register a new Team Leader' :
-                                        user?.role === 'TEAM_LEADER' ? 'Register a new Employee' :
-                                            'Register a new team member'
-                            }
-                        </DialogDescription>
-                    </DialogHeader>
+                <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto p-0 gap-0">
+                    <div className="p-6">
+                        <DialogHeader>
+                            <DialogTitle>
+                                {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
+                            </DialogTitle>
+                            <DialogDescription>
+                                {editingEmployee ? 'Update employee details' :
+                                    user?.role === 'HR' ? 'Register a new Manager' :
+                                        user?.role === 'MANAGER' ? 'Register a new Team Leader' :
+                                            user?.role === 'TEAM_LEADER' ? 'Register a new Employee' :
+                                                'Register a new team member'
+                                }
+                            </DialogDescription>
+                        </DialogHeader>
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Full Name</Label>
-                                <Input
-                                    id="name"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="John Doe"
-                                    required
-                                />
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
+                                <div className="space-y-2 min-w-0">
+                                    <Label htmlFor="name">Full Name</Label>
+                                    <Input
+                                        id="name"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        placeholder="John Doe"
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2 min-w-0">
+                                    <Label htmlFor="email">Email</Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        placeholder="john@company.com"
+                                        required
+                                    />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    placeholder="john@company.com"
-                                    required
-                                />
-                            </div>
-                        </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="password">
-                                {editingEmployee ? 'New Password (leave empty to keep current)' : 'Password'}
-                            </Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                placeholder="••••••••"
-                                required={!editingEmployee}
-                                minLength={6}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* Department Selection - MOVED UP */}
                             <div className="space-y-2">
-                                <Label htmlFor="department">Domain (Team)</Label>
-                                <Select
-                                    value={formData.department}
-                                    onValueChange={(value) => {
-                                        setFormData(prev => ({
-                                            ...prev,
-                                            department: value,
-                                            role: '', // Reset role when department changes
-                                            designation: ''
-                                        }))
-                                    }}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select Domain" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Fullstack Team">Fullstack Team</SelectItem>
-                                        <SelectItem value="Artificial Intelligence Team">Artificial Intelligence Team</SelectItem>
-                                        <SelectItem value="Data Analytics Team">Data Analytics Team</SelectItem>
-                                        <SelectItem value="Research & Development Team">Research & Development Team</SelectItem>
-                                        <SelectItem value="Hardware Development Team">Hardware Development Team</SelectItem>
-                                        <SelectItem value="Project Development Team">Project Development Team</SelectItem>
-                                        <SelectItem value="Digital Marketing Team">Digital Marketing Team</SelectItem>
-                                        {/* Option for System roles if needed */}
-                                        {(user?.role === 'ADMIN' || user?.role === 'HR') && (
-                                            <SelectItem value="Administration">Administration / Other</SelectItem>
+                                <Label htmlFor="password">
+                                    {editingEmployee ? 'New Password (leave empty to keep current)' : 'Password'}
+                                </Label>
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                        placeholder="••••••••"
+                                        required={!editingEmployee}
+                                        minLength={6}
+                                        className="pr-10"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                            <Eye className="h-4 w-4" />
                                         )}
-                                    </SelectContent>
-                                </Select>
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="role">Role</Label>
-                                <Select
-                                    value={formData.designation ? `${formData.role}:${formData.designation}` : formData.role}
-                                    onValueChange={(value) => {
-                                        let role = value
-                                        let designation = formData.designation
-                                        let managerId = formData.managerId
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
+                                <div className="space-y-2 min-w-0">
+                                    <Label htmlFor="department">Domain (Team)</Label>
+                                    <Select
+                                        value={formData.department}
+                                        onValueChange={(value) => {
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                department: value,
+                                                designation: '',
+                                                managerId: ''
+                                            }))
+                                        }}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select Domain" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Fullstack Team">Fullstack Team</SelectItem>
+                                            <SelectItem value="Artificial Intelligence Team">AI Team</SelectItem>
+                                            <SelectItem value="Data Analytics Team">Data Analytics</SelectItem>
+                                            <SelectItem value="Research & Development Team">R&D Team</SelectItem>
+                                            <SelectItem value="Hardware Development Team">Hardware Development</SelectItem>
+                                            <SelectItem value="Project Development Team">Project Development</SelectItem>
+                                            <SelectItem value="Digital Marketing Team">Digital Marketing</SelectItem>
+                                            <SelectItem value="Administration">Administration / Other</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
 
-                                        if (value.includes(':')) {
-                                            const parts = value.split(':')
-                                            role = parts[0]
-                                            designation = parts[1]
-                                        } else {
-                                            role = value
-                                            // Don't reset designation if manually typed, but for BA/PA keep it empty unless we auto-fill
-                                        }
-
-                                        // Auto-fill for Administrative roles
-                                        if (formData.department === 'Administration' || formData.department === 'Administration / Other') {
-                                            if (role === 'HR') {
-                                                designation = 'HR Manager'
-                                                managerId = 'Administrative'
-                                            } else if (role === 'BA') {
-                                                designation = 'Business Associate'
-                                                managerId = 'Administrative'
-                                            } else if (role === 'PA') {
-                                                designation = 'Personal Assistant'
-                                                managerId = 'Administrative'
-                                            }
-                                        }
-
-                                        // Auto-fill manager for Research Analyst in R&D
-                                        if (formData.department === 'Research & Development Team' && designation === 'Research Analyst') {
-                                            const coordinator = employees.find(emp =>
-                                                emp.department === 'Research & Development Team' &&
-                                                (emp.designation === 'Team Coordinator' || emp.role === 'TEAM_COORDINATOR')
-                                            )
-                                            if (coordinator) {
-                                                managerId = coordinator.id
-                                            }
-                                        }
-
-                                        setFormData({ ...formData, role, designation, managerId })
-                                    }}
-                                    disabled={!formData.department && user?.role !== 'ADMIN'}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select Role" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {(() => {
-                                            const dept = formData.department
-                                            const sysRole = user?.role
-
-                                            // Helper to render Item
-                                            const Item = ({ r, d, l }: { r: string, d: string, l: string }) => (
-                                                <SelectItem value={`${r}:${d}`}>{l}</SelectItem>
-                                            )
-
-                                            if (!dept || dept === 'Administration') {
-                                                return (
-                                                    <>
-                                                        {sysRole === 'ADMIN' && <SelectItem value="ADMIN:Admin">Admin</SelectItem>}
-                                                        {sysRole === 'ADMIN' && <SelectItem value="HR:HR Manager">HR</SelectItem>}
-                                                        <SelectItem value="BA:Business Associate">Business Associate (BA)</SelectItem>
-                                                        <SelectItem value="PA:Personal Assistant">Personal Assistant (PA)</SelectItem>
-                                                        <SelectItem value="MANAGER:Manager">Manager</SelectItem>
-                                                    </>
-                                                )
-                                            }
-
-                                            if (dept === 'Fullstack Team') {
-                                                return (
-                                                    <>
-                                                        <Item r="MANAGER" d="Manager" l="Manager" />
-                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
-                                                        <Item r="TEAM_COORDINATOR" d="Team Coordinator" l="Team Coordinator" />
-                                                        <Item r="EMPLOYEE" d="Developer" l="Developer" />
-                                                        <Item r="INTERN" d="Intern" l="Intern" />
-                                                    </>
-                                                )
-                                            }
-
-                                            if (dept === 'Artificial Intelligence Team') {
-                                                return (
-                                                    <>
-                                                        {/* AI shares Manager with Fullstack, usually meaning they report to FS Manager. 
-                                                            Prompt says "In addition, it includes Team Leaders and Developers". 
-                                                            Implies no AI Manager creation, or they use FS Manager. */}
-                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
-                                                        <Item r="EMPLOYEE" d="Developer" l="Developer" />
-                                                        <Item r="INTERN" d="Intern" l="Intern" />
-                                                    </>
-                                                )
-                                            }
-
-                                            if (dept === 'Data Analytics Team') {
-                                                return (
-                                                    <>
-                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
-                                                        <Item r="TEAM_COORDINATOR" d="Team Coordinator" l="Team Coordinator" />
-                                                        <Item r="EMPLOYEE" d="Data Analyst" l="Data Analyst" />
-                                                        <Item r="INTERN" d="Intern" l="Intern" />
-                                                    </>
-                                                )
-                                            }
-
-                                            if (dept === 'Research & Development Team') {
-                                                return (
-                                                    <>
-                                                        <Item r="MANAGER" d="Manager" l="Manager" />
-                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
-                                                        <Item r="TEAM_COORDINATOR" d="Team Coordinator" l="Team Coordinator" />
-                                                        <Item r="EMPLOYEE" d="Research Analyst" l="Research Analyst" />
-                                                    </>
-                                                )
-                                            }
-
-                                            if (dept === 'Hardware Development Team') {
-                                                return (
-                                                    <>
-                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
-                                                        <Item r="EMPLOYEE" d="Hardware Developer" l="Hardware Developer" />
-                                                        <Item r="INTERN" d="Intern" l="Intern" />
-                                                    </>
-                                                )
-                                            }
-
-                                            if (dept === 'Project Development Team') {
-                                                return (
-                                                    <>
-                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
-                                                        <Item r="EMPLOYEE" d="Developer" l="Developer" />
-                                                        <Item r="INTERN" d="Intern" l="Intern" />
-                                                    </>
-                                                )
-                                            }
-
-                                            if (dept === 'Digital Marketing Team') {
-                                                return (
-                                                    <>
-                                                        <Item r="MANAGER" d="Manager" l="Manager" />
-                                                        <Item r="TEAM_LEADER" d="Team Leader" l="Team Leader" />
-                                                        <Item r="EMPLOYEE" d="Marketing Executive" l="Marketing Executive" />
-                                                        <Item r="INTERN" d="Intern" l="Intern" />
-                                                    </>
-                                                )
-                                            }
-
-                                            return <SelectItem value="EMPLOYEE">Employee</SelectItem>
-                                        })()}
-                                    </SelectContent>
-                                </Select>
+                                <div className="space-y-2 min-w-0">
+                                    <Label htmlFor="role">Role</Label>
+                                    <Select
+                                        value={formData.role === 'INTERN' ? 'INTERN' : 'EMPLOYEE'}
+                                        onValueChange={(value) => {
+                                            setFormData(prev => ({ ...prev, role: value as any }))
+                                        }}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select Role" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                                            <SelectItem value="INTERN">Intern</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
 
-                            {/* Designation (Editable, auto-filled) */}
-                            <div className="space-y-2">
-                                <Label htmlFor="designation">Designation (Job Title)</Label>
-                                <Input
-                                    id="designation"
-                                    value={formData.designation}
-                                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                                    placeholder="e.g. Senior Developer"
-                                />
-                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
+                                <div className="space-y-2 min-w-0">
+                                    <Label htmlFor="designation">Designation</Label>
+                                    <Select
+                                        value={formData.designation}
+                                        onValueChange={(value) => {
+                                            let role = formData.role
+                                            let managerId = ''
 
-                            {/* Manual Reporting Manager Selection */}
-                            {(formData.role !== 'ADMIN') && (
-                                <div className="space-y-2 col-span-2">
-                                    <Label htmlFor="managerId">Reporting To (Manager/Leader) *</Label>
+                                            // Auto-derive DB Role from Designation
+                                            if (value === 'Manager') role = 'MANAGER'
+                                            else if (value === 'Team Leader') role = 'TEAM_LEADER'
+                                            else if (value === 'Team Coordinator') role = 'TEAM_COORDINATOR'
+                                            else if (value === 'HR') role = 'HR'
+                                            else if (value === 'Business Associate') role = 'BA'
+                                            else if (value === 'Intern') role = 'INTERN'
+                                            else role = formData.role === 'INTERN' ? 'INTERN' : 'EMPLOYEE'
+
+                                            // Auto-fill manager for certain rules
+                                            if (['Manager', 'HR', 'Business Associate'].includes(value)) {
+                                                managerId = 'Administrative'
+                                            }
+
+                                            setFormData(prev => ({ ...prev, designation: value, role, managerId }))
+                                        }}
+                                        disabled={!formData.department}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select Designation" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {(() => {
+                                                const dept = formData.department
+                                                if (dept === "Research & Development Team") return ["Manager", "Team Leader", "Team Coordinator", "Research Analyst", "Trainee"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
+                                                if (dept === "Fullstack Team") return ["Manager", "Team Leader", "Junior Web Developer", "Intern"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
+                                                if (dept === "Artificial Intelligence Team") return ["Team Leader", "Junior Web Developer", "Intern"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
+                                                if (dept === "Data Analytics Team") return ["Team Leader", "Team Coordinator", "Data Analyst", "Intern"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
+                                                if (dept === "Hardware Development Team") return ["Team Leader", "Hardware Developer", "Intern"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
+                                                if (dept === "Project Development Team") return ["Team Leader", "Developer", "Intern"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
+                                                if (dept === "Digital Marketing Team") return ["Manager", "Team Leader", "Marketing Executive", "Intern"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
+                                                if (dept === "Administration") return ["HR", "HR Trainee", "Business Associate"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
+                                                return null
+                                            })()}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2 min-w-0">
+                                    <Label htmlFor="managerId">Reporting To (Wait) *</Label>
                                     <Select
                                         value={formData.managerId}
                                         onValueChange={(value) => setFormData({ ...formData, managerId: value })}
+                                        disabled={!formData.designation}
                                     >
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select Reporting Person" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="no-manager">-- None --</SelectItem>
                                             <SelectItem value="Administrative">Administrative</SelectItem>
                                             {employees
                                                 .filter(emp => {
-                                                    // Filter logic based on current role and department
-                                                    const targetRole = formData.role
-                                                    const targetDept = formData.department
+                                                    const d = formData.designation
+                                                    const dept = formData.department
 
-                                                    // 1. Managers report to Admin (or HR optionally, but user said "only show admin")
-                                                    if (targetRole === 'MANAGER') {
-                                                        return emp.role === 'ADMIN'
+                                                    // 🔹 R&D Logic
+                                                    if (dept === 'Research & Development Team') {
+                                                        if (d === 'Team Leader') return emp.designation === 'Manager' && emp.department === dept
+                                                        if (d === 'Team Coordinator') return emp.designation === 'Team Leader' && emp.department === dept
+                                                        if (d === 'Research Analyst' || d === 'Trainee') return emp.designation === 'Team Coordinator' && emp.department === dept
                                                     }
-
-                                                    // 2. Team Leaders report to Managers of the SAME Domain (or Admin if none)
-                                                    if (targetRole === 'TEAM_LEADER') {
-                                                        // Always allow reporting to Admin
-                                                        if (emp.role === 'ADMIN') return true
-
-                                                        // Otherwise, must be Manager
-                                                        if (emp.role !== 'MANAGER') return false
-
-                                                        // Special Case: AI Team shares Fullstack Manager
-                                                        if (targetDept === 'Artificial Intelligence Team') {
-                                                            return emp.department === 'Artificial Intelligence Team' || emp.department === 'Fullstack Team'
-                                                        }
-
-                                                        // Default: Match Department
-                                                        return emp.department === targetDept
+                                                    // 🔹 Fullstack Logic
+                                                    if (dept === 'Fullstack Team') {
+                                                        if (d === 'Team Leader') return emp.designation === 'Manager' && emp.department === dept
+                                                        if (d === 'Junior Web Developer' || d === 'Intern') return emp.designation === 'Team Leader' && emp.department === dept
                                                     }
-
-                                                    // 3. Team Coordinators report to Managers or Team Leaders of the SAME Domain
-                                                    if (targetRole === 'TEAM_COORDINATOR') {
-                                                        // Always allow reporting to Admin
-                                                        if (emp.role === 'ADMIN') return true
-                                                        if (emp.role !== 'MANAGER' && emp.role !== 'TEAM_LEADER') return false
-                                                        return emp.department === targetDept
+                                                    // 🔹 AI Logic
+                                                    if (dept === 'Artificial Intelligence Team') {
+                                                        if (d === 'Team Leader') return emp.designation === 'Manager' && (emp.department === 'Fullstack Team' || emp.department === 'Artificial Intelligence Team')
+                                                        if (d === 'Junior Web Developer' || d === 'Intern') return emp.designation === 'Team Leader' && emp.department === dept
                                                     }
-
-                                                    // 4. Employees report to Team Leaders (or Coordinators) of the SAME Domain
-                                                    if (targetRole === 'EMPLOYEE' || targetRole === 'BA' || targetRole === 'PA' || targetRole === 'INTERN') {
-                                                        // R&D Special: Analysts can report to Team Leaders or Coordinators
-                                                        if (emp.role !== 'TEAM_LEADER' && emp.role !== 'MANAGER' && emp.role !== 'TEAM_COORDINATOR') return false
-
-                                                        // Match Department
-                                                        if (targetDept === 'Artificial Intelligence Team') {
-                                                            return emp.department === 'Artificial Intelligence Team' || emp.department === 'Fullstack Team'
-                                                        }
-                                                        return emp.department === targetDept
+                                                    // 🔹 DA Logic
+                                                    if (dept === 'Data Analytics Team') {
+                                                        if (d === 'Team Leader') return emp.role === 'MANAGER' || (emp.designation === 'Manager')
+                                                        if (d === 'Team Coordinator') return emp.designation === 'Team Leader' && emp.department === dept
+                                                        if (d === 'Data Analyst' || d === 'Intern') return emp.designation === 'Team Coordinator' && emp.department === dept
+                                                    }
+                                                    // 🔹 Hardware Logic
+                                                    if (dept === 'Hardware Development Team') {
+                                                        if (d === 'Hardware Developer' || d === 'Intern') return emp.designation === 'Team Leader' && emp.department === dept
+                                                    }
+                                                    // 🔹 Project Logic
+                                                    if (dept === 'Project Development Team') {
+                                                        if (d === 'Developer' || d === 'Intern') return emp.designation === 'Team Leader' && emp.department === dept
+                                                    }
+                                                    // 🔹 Marketing Logic
+                                                    if (dept === 'Digital Marketing Team') {
+                                                        if (d === 'Team Leader') return emp.designation === 'Manager' && emp.department === dept
+                                                        if (d === 'Marketing Executive' || d === 'Intern') return emp.designation === 'Team Leader' && emp.department === dept
+                                                    }
+                                                    // 🔹 Admin Logic
+                                                    if (dept === 'Administration') {
+                                                        if (d === 'HR Trainee') return emp.designation === 'HR'
                                                     }
 
                                                     return false
                                                 })
                                                 .map(emp => (
                                                     <SelectItem key={emp.id} value={emp.id}>
-                                                        {emp.name} ({emp.designation || emp.role})
+                                                        {emp.name} ({emp.designation})
                                                     </SelectItem>
                                                 ))}
                                         </SelectContent>
                                     </Select>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        Manually assign the reporting hierarchy.
-                                    </p>
                                 </div>
-                            )}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="phone">Phone</Label>
-                                <Input
-                                    id="phone"
-                                    value={formData.phone}
-                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                    placeholder="+1 234 567 8900"
-                                />
                             </div>
-                            {editingEmployee && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="status">Status</Label>
-                                    <Select
-                                        value={formData.status}
-                                        onValueChange={(value) => setFormData({ ...formData, status: value })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ACTIVE">Active</SelectItem>
-                                            <SelectItem value="INACTIVE">Inactive</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
-                        </div>
 
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                                Cancel
-                            </Button>
-                            <LoadingButton type="submit" loading={saving}>
-                                {editingEmployee ? 'Save Changes' : 'Add Employee'}
-                            </LoadingButton>
-                        </DialogFooter>
-                    </form>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
+                                <div className="space-y-2 min-w-0">
+                                    <Label htmlFor="phone">Phone</Label>
+                                    <Input
+                                        id="phone"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        placeholder="+1 234 567 8900"
+                                    />
+                                </div>
+                                {editingEmployee && (
+                                    <div className="space-y-2 min-w-0">
+                                        <Label htmlFor="status">Status</Label>
+                                        <Select
+                                            value={formData.status}
+                                            onValueChange={(value) => setFormData({ ...formData, status: value })}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="ACTIVE">Active</SelectItem>
+                                                <SelectItem value="INACTIVE">Inactive</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                            </div>
+
+                            <DialogFooter className="mt-6 sticky bottom-0 bg-white dark:bg-slate-900 pt-4 border-t">
+                                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                                    Cancel
+                                </Button>
+                                <LoadingButton type="submit" loading={saving}>
+                                    {editingEmployee ? 'Save Changes' : 'Add Employee'}
+                                </LoadingButton>
+                            </DialogFooter>
+                        </form>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div >

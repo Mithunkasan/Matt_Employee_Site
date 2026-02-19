@@ -110,13 +110,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
         // Role change restrictions
         if (updateData.role) {
-            // HR can only assign certain roles
-            if (session.role === 'HR' && !['EMPLOYEE', 'PA', 'BA', 'MANAGER', 'TEAM_LEADER'].includes(updateData.role)) {
+            // HR can only assign certain roles (cannot assign ADMIN)
+            if (session.role === 'HR' && updateData.role === 'ADMIN') {
                 return NextResponse.json(
-                    { error: 'HR cannot assign Admin or HR roles' },
+                    { error: 'HR cannot assign the Admin role' },
                     { status: 403 }
                 )
             }
+
             // Non-admin, non-HR users cannot change roles at all
             if (session.role !== 'ADMIN' && session.role !== 'HR') {
                 delete updateData.role
@@ -129,6 +130,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
             delete updateData.department
             delete updateData.designation
             delete updateData.managerId
+        }
+
+        // Normalize managerId
+        if (updateData.managerId === "Administrative" || updateData.managerId === "no-manager" || updateData.managerId === "") {
+            (updateData as any).managerId = null
         }
 
         const user = await prisma.user.update({

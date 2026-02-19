@@ -128,6 +128,15 @@ export async function POST(request: NextRequest) {
         }
 
         const { email, password, role, managerId: rawManagerId, ...userData } = validation.data
+
+        // Role restriction for HR
+        if (session.role === 'HR' && role === 'ADMIN') {
+            return NextResponse.json(
+                { error: 'HR cannot create Admin accounts' },
+                { status: 403 }
+            )
+        }
+
         const managerId = rawManagerId && rawManagerId !== "" && rawManagerId !== "no-manager" ? rawManagerId : undefined
 
         // Check if email exists
