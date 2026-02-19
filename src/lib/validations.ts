@@ -14,7 +14,7 @@ export const createUserSchema = z.object({
     department: z.string().optional(),
     designation: z.string().optional(),
     phone: z.string().optional(),
-    managerId: z.string().optional(),
+    managerId: z.string().optional().nullable(),
 })
 
 export const updateUserSchema = z.object({
@@ -25,7 +25,7 @@ export const updateUserSchema = z.object({
     department: z.string().optional(),
     designation: z.string().optional(),
     phone: z.string().optional(),
-    managerId: z.string().optional(),
+    managerId: z.string().optional().nullable(),
 })
 
 // Project schemas
