@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Regular employees can only see limited info
-        if (session.role === 'EMPLOYEE') {
+        if (['EMPLOYEE', 'INTERN', 'TEAM_COORDINATOR', 'PA'].includes(session.role)) {
             const users = await prisma.user.findMany({
                 where,
                 select: {

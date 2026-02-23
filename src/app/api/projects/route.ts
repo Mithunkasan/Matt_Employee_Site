@@ -18,13 +18,13 @@ export async function GET(request: NextRequest) {
 
         const where: Record<string, unknown> = {}
 
-        // Employees see only assigned projects
-        if (session.role === 'EMPLOYEE') {
+        // Employees and Interns see only assigned projects
+        if (session.role === 'EMPLOYEE' || session.role === 'INTERN') {
             where.assignedToId = session.userId
         }
-        // BAs, Managers, Team Leaders and PAs see projects assigned to them, created by them,
+        // BAs, Managers, Team Leaders, Team Coordinators and PAs see projects assigned to them, created by them,
         // or assigned to their subordinates
-        else if (['BA', 'MANAGER', 'TEAM_LEADER', 'PA'].includes(session.role)) {
+        else if (['BA', 'MANAGER', 'TEAM_LEADER', 'TEAM_COORDINATOR', 'PA'].includes(session.role)) {
             where.OR = [
                 { assignedToId: session.userId },
                 { createdById: session.userId },

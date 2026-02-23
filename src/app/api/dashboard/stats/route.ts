@@ -12,9 +12,56 @@ export async function GET() {
         const today = new Date()
         today.setHours(0, 0, 0, 0)
 
+        const where: Record<string, any> = {}
+        const reportWhere: Record<string, any> = {}
+
+        if (['EMPLOYEE', 'INTERN'].includes(session.role)) {
+            where.assignedToId = session.userId
+            reportWhere.userId = session.userId
+        } else if (['BA', 'MANAGER', 'TEAM_LEADER', 'TEAM_COORDINATOR', 'PA'].includes(session.role)) {
+            where.OR = [
+                { assignedToId: session.userId },
+                { createdById: session.userId },
+                { assignedTo: { managerId: session.userId } },
+                { assignedTo: { manager: { managerId: session.userId } } }
+            ]
+            reportWhere.OR = [
+                { userId: session.userId },
+                { user: { managerId: session.userId } },
+                { user: { manager: { managerId: session.userId } } }
+            ]
+        }
+
+        // Recent projects
+        const recentProjects = await prisma.project.findMany({
+            where,
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+            include: {
+                assignedTo: {
+                    select: { id: true, name: true },
+                },
+            },
+        })
+
+        // Recent reports
+        const recentReports = await prisma.dailyReport.findMany({
+            where: reportWhere,
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+            include: {
+                user: {
+                    select: { id: true, name: true },
+                },
+                project: {
+                    select: { id: true, title: true },
+                },
+            },
+        })
+
         // Get stats based on role
-        if (session.role === 'EMPLOYEE') {
-            // Employee-specific stats
+        if (!['ADMIN', 'HR'].includes(session.role)) {
+            // Individual stats
             const [
                 myProjects,
                 myCompletedProjects,
@@ -53,10 +100,12 @@ export async function GET() {
                     myReportsThisMonth,
                     myAttendanceThisMonth,
                 },
+                recentProjects,
+                recentReports,
             })
         }
 
-        // Admin/HR/PA stats
+        // Admin/HR stats (Global)
         const [
             totalEmployees,
             activeEmployees,
@@ -91,31 +140,6 @@ export async function GET() {
                 where: { status: 'PENDING' },
             }),
         ])
-
-        // Recent projects
-        const recentProjects = await prisma.project.findMany({
-            take: 5,
-            orderBy: { createdAt: 'desc' },
-            include: {
-                assignedTo: {
-                    select: { id: true, name: true },
-                },
-            },
-        })
-
-        // Recent reports
-        const recentReports = await prisma.dailyReport.findMany({
-            take: 5,
-            orderBy: { createdAt: 'desc' },
-            include: {
-                user: {
-                    select: { id: true, name: true },
-                },
-                project: {
-                    select: { id: true, title: true },
-                },
-            },
-        })
 
         return NextResponse.json({
             stats: {

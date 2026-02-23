@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
 
         const where: Record<string, unknown> = {}
 
-        // Employees can only see their own attendance
-        if (session.role === 'EMPLOYEE') {
+        // Employees and other individual roles can only see their own attendance
+        if (['EMPLOYEE', 'INTERN', 'TEAM_COORDINATOR', 'PA'].includes(session.role)) {
             where.userId = session.userId
         } else if (userId) {
             where.userId = userId
