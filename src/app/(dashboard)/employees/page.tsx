@@ -338,7 +338,7 @@ export default function EmployeesPage() {
                         </SelectContent>
                     </Select>
                     {canManageEmployees && (
-                        <Button onClick={openCreateDialog} className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
+                        <Button onClick={openCreateDialog} className="bg-[#13498a] hover:bg-[#0f3d73] text-white">
                             <UserPlus className="h-4 w-4 mr-2" />
                             Add Employee
                         </Button>
@@ -429,7 +429,7 @@ export default function EmployeesPage() {
                                                     <TableCell className="text-right">
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" size="icon">
+                                                                <Button variant="ghost" size="icon" className="text-[#13498a] hover:text-[#0f3d73]">
                                                                     <MoreHorizontal className="h-4 w-4" />
                                                                 </Button>
                                                             </DropdownMenuTrigger>
@@ -634,7 +634,7 @@ export default function EmployeesPage() {
                                 </div>
 
                                 <div className="space-y-2 min-w-0">
-                                    <Label htmlFor="managerId">Reporting To (Wait) *</Label>
+                                    <Label htmlFor="managerId">Reporting To *</Label>
                                     <Select
                                         value={formData.managerId}
                                         onValueChange={(value) => setFormData({ ...formData, managerId: value })}
@@ -654,7 +654,9 @@ export default function EmployeesPage() {
                                                     if (dept === 'Research & Development Team') {
                                                         if (d === 'Team Leader') return emp.designation === 'Manager' && emp.department === dept
                                                         if (d === 'Team Coordinator') return emp.designation === 'Team Leader' && emp.department === dept
-                                                        if (d === 'Research Analyst' || d === 'Trainee') return emp.designation === 'Team Coordinator' && emp.department === dept
+                                                        if (d === 'Research Analyst' || d === 'Trainee' || d === 'Intern') {
+                                                            return (emp.designation === 'Team Coordinator' || emp.designation === 'Team Leader') && emp.department === dept
+                                                        }
                                                     }
                                                     // 🔹 Fullstack Logic
                                                     if (dept === 'Fullstack Team') {
@@ -732,10 +734,10 @@ export default function EmployeesPage() {
                             </div>
 
                             <DialogFooter className="mt-6 sticky bottom-0 bg-white dark:bg-slate-900 pt-4 border-t">
-                                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                                <Button type="button" onClick={() => setDialogOpen(false)} className="bg-[#13498a] hover:bg-[#0f3d73] text-white">
                                     Cancel
                                 </Button>
-                                <LoadingButton type="submit" loading={saving}>
+                                <LoadingButton type="submit" loading={saving} className="bg-[#13498a] hover:bg-[#0f3d73] text-white">
                                     {editingEmployee ? 'Save Changes' : 'Add Employee'}
                                 </LoadingButton>
                             </DialogFooter>
