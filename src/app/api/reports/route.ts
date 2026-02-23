@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
             where.user = {
                 managerId: session.userId
             }
-        } else if (session.role === 'EMPLOYEE' || session.role === 'INTERN') {
+        } else if (['EMPLOYEE', 'INTERN', 'TEAM_COORDINATOR', 'PA'].includes(session.role)) {
             where.userId = session.userId
         } else if (userId) {
             where.userId = userId

@@ -101,7 +101,7 @@ export default function DashboardPage() {
         )
     }
 
-    const isEmployee = user?.role === 'EMPLOYEE'
+    const isEmployee = !['ADMIN', 'HR'].includes(user?.role || '')
 
     return (
         <div className="min-h-screen">
