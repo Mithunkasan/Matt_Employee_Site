@@ -64,14 +64,35 @@ export async function GET() {
 
             // Calculate total hours from all sessions
             let totalHours = 0
+            let totalOvertimeHours = 0
+
+            const thresholdHour = 17
+            const thresholdMinute = 30
+
             attendance.sessions.forEach((session: any) => {
                 if (session.checkOut) {
                     totalHours += session.hoursWorked
+                    totalOvertimeHours += session.overtimeHours || 0
                 } else {
                     // Session is still active, calculate current working time
-                    const diffInMs = now.getTime() - new Date(session.checkIn).getTime()
+                    const checkIn = new Date(session.checkIn)
+                    const diffInMs = now.getTime() - checkIn.getTime()
                     const currentSessionHours = diffInMs / (1000 * 60 * 60)
                     totalHours += currentSessionHours
+
+                    // Calculate current overtime if session is still active
+                    let currentOvertime = 0
+                    const threshold = new Date(now)
+                    threshold.setHours(thresholdHour, thresholdMinute, 0, 0)
+
+                    if (session.isOvertime) {
+                        currentOvertime = currentSessionHours
+                    } else if (now > threshold) {
+                        const otStart = checkIn > threshold ? checkIn : threshold
+                        const otMs = now.getTime() - otStart.getTime()
+                        currentOvertime = otMs / (1000 * 60 * 60)
+                    }
+                    totalOvertimeHours += currentOvertime
                 }
             })
 
@@ -85,6 +106,8 @@ export async function GET() {
                 date: attendance.date,
                 status: attendance.status,
                 totalHours: Math.round(totalHours * 100) / 100,
+                overtimeHours: Math.round(totalOvertimeHours * 100) / 100,
+                isOvertime: totalOvertimeHours > 0,
                 sessions: attendance.sessions,
                 isOnline,
                 sessionCount: attendance.sessions.length,

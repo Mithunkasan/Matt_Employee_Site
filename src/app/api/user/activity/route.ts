@@ -41,7 +41,7 @@ export async function POST(req: Request) {
                         data: {
                             userId: user.id,
                             title: 'Stuck Key Alert',
-                            message: `Suspicious activity detected: Employee ${session.name} (${session.role}) has been pressing a key continuously for over 15 minutes.`,
+                            message: `Suspicious activity detected: Employee ${session.name} (${session.role}) has been pressing a key continuously for over 10 minutes.`,
                         }
                     })
                 }

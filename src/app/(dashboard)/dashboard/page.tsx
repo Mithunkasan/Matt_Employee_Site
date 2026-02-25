@@ -39,6 +39,8 @@ interface DashboardStats {
     myCompletedProjects?: number
     myReportsThisMonth?: number
     myAttendanceThisMonth?: number
+    myOvertimeThisMonth?: number
+    totalOvertimeToday?: number
 }
 
 interface RecentProject {
@@ -147,9 +149,9 @@ export default function DashboardPage() {
                             gradientTo="to-orange-700"
                         />
                         <StatsCard
-                            title="Days Present"
-                            value={stats?.myAttendanceThisMonth || 0}
-                            icon={CalendarCheck}
+                            title="Overtime (Month)"
+                            value={stats?.myOvertimeThisMonth ? `${stats.myOvertimeThisMonth.toFixed(1)}h` : '0h'}
+                            icon={TrendingUp}
                             variant="gradient"
                             gradientFrom="from-[#b12024]"
                             gradientTo="to-red-700"
@@ -184,9 +186,9 @@ export default function DashboardPage() {
                             gradientTo="to-orange-700"
                         />
                         <StatsCard
-                            title="Today's Attendance"
-                            value={stats?.todayAttendance || 0}
-                            icon={CalendarCheck}
+                            title="Overtime Today"
+                            value={stats?.totalOvertimeToday ? `${stats.totalOvertimeToday.toFixed(1)}h` : '0h'}
+                            icon={TrendingUp}
                             variant="gradient"
                             gradientFrom="from-[#b12024]"
                             gradientTo="to-red-700"

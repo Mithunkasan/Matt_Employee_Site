@@ -12,6 +12,7 @@ export interface SessionPayload {
     email: string
     name: string
     role: Role
+    sessionId: string
     expiresAt: Date
 }
 
@@ -39,6 +40,7 @@ export async function createSession(user: {
     email: string
     name: string
     role: Role
+    sessionId: string
 }): Promise<void> {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
     const session: SessionPayload = {
@@ -46,6 +48,7 @@ export async function createSession(user: {
         email: user.email,
         name: user.name,
         role: user.role,
+        sessionId: user.sessionId,
         expiresAt,
     }
     const token = await encrypt(session)
