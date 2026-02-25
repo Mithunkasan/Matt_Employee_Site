@@ -44,27 +44,48 @@ export async function GET() {
         // Calculate working hours for employees from their sessions
         const employeeWorkingHours = attendances.map((attendance) => {
             let totalHours = 0
-            let latestSession: typeof attendance.sessions[0] | null = null
+            let totalOvertimeHours = 0
             let isActive = false
+
+            const thresholdHour = 17
+            const thresholdMinute = 30
 
             // Calculate total hours from all sessions
             attendance.sessions.forEach((session) => {
                 if (session.checkOut) {
                     // Session is complete, use the stored hours
                     totalHours += session.hoursWorked
+                    totalOvertimeHours += session.overtimeHours
                 } else {
                     // Session is still active, calculate current working time
                     const now = new Date()
-                    const diffInMs = now.getTime() - new Date(session.checkIn).getTime()
+                    const checkIn = new Date(session.checkIn)
+                    const diffInMs = now.getTime() - checkIn.getTime()
                     const currentSessionHours = diffInMs / (1000 * 60 * 60) // Convert to hours
                     totalHours += currentSessionHours
                     isActive = true
-                    latestSession = session
+
+                    // Calculate current overtime if session is still active
+                    let currentOvertime = 0
+                    const threshold = new Date(now)
+                    threshold.setHours(thresholdHour, thresholdMinute, 0, 0)
+
+                    if (session.isOvertime) {
+                        // Started after 5:30 PM
+                        currentOvertime = currentSessionHours
+                    } else if (now > threshold) {
+                        // Started before but currently after 5:30 PM
+                        const otStart = checkIn > threshold ? checkIn : threshold
+                        const otMs = now.getTime() - otStart.getTime()
+                        currentOvertime = otMs / (1000 * 60 * 60)
+                    }
+                    totalOvertimeHours += currentOvertime
                 }
             })
 
             // Round to 2 decimal places
             totalHours = Math.round(totalHours * 100) / 100
+            totalOvertimeHours = Math.round(totalOvertimeHours * 100) / 100
 
             // Get first session's check-in time and last session's check-out time
             const firstCheckIn = attendance.sessions.length > 0
@@ -81,6 +102,8 @@ export async function GET() {
                 checkIn: firstCheckIn,
                 checkOut: lastCheckOut,
                 workingHours: totalHours,
+                overtimeHours: totalOvertimeHours,
+                isOvertime: totalOvertimeHours > 0,
                 isActive: isActive,
                 date: attendance.date,
             }
@@ -91,6 +114,10 @@ export async function GET() {
             (sum, emp) => sum + (emp.workingHours || 0),
             0
         )
+        const totalOvertimeToday = employeeWorkingHours.reduce(
+            (sum, emp) => sum + (emp.overtimeHours || 0),
+            0
+        )
 
         return NextResponse.json({
             employees: employeeWorkingHours,
@@ -98,6 +125,7 @@ export async function GET() {
                 totalEmployeesPresent: attendances.length,
                 activeEmployees: employeeWorkingHours.filter((e) => e.isActive).length,
                 totalHoursToday: Math.round(totalHoursToday * 100) / 100,
+                totalOvertimeToday: Math.round(totalOvertimeToday * 100) / 100,
             },
         })
     } catch (error) {

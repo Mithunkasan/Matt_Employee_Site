@@ -67,6 +67,7 @@ export async function GET() {
                 myCompletedProjects,
                 myReportsThisMonth,
                 myAttendanceThisMonth,
+                myOvertimeThisMonth,
             ] = await Promise.all([
                 prisma.project.count({
                     where: { assignedToId: session.userId },
@@ -91,6 +92,17 @@ export async function GET() {
                         },
                     },
                 }),
+                prisma.attendance.aggregate({
+                    where: {
+                        userId: session.userId,
+                        date: {
+                            gte: new Date(today.getFullYear(), today.getMonth(), 1),
+                        },
+                    },
+                    _sum: {
+                        overtimeHours: true
+                    }
+                })
             ])
 
             return NextResponse.json({
@@ -99,6 +111,7 @@ export async function GET() {
                     myCompletedProjects,
                     myReportsThisMonth,
                     myAttendanceThisMonth,
+                    myOvertimeThisMonth: myOvertimeThisMonth._sum.overtimeHours || 0,
                 },
                 recentProjects,
                 recentReports,
@@ -116,6 +129,7 @@ export async function GET() {
             todayAttendance,
             totalReportsToday,
             pendingWfhRequests,
+            totalOvertimeToday,
         ] = await Promise.all([
             prisma.user.count(),
             prisma.user.count({ where: { status: 'ACTIVE' } }),
@@ -139,6 +153,14 @@ export async function GET() {
             prisma.workFromHomeRequest.count({
                 where: { status: 'PENDING' },
             }),
+            prisma.attendance.aggregate({
+                where: {
+                    date: today,
+                },
+                _sum: {
+                    overtimeHours: true
+                }
+            })
         ])
 
         return NextResponse.json({
@@ -152,6 +174,7 @@ export async function GET() {
                 todayAttendance,
                 totalReportsToday,
                 pendingWfhRequests,
+                totalOvertimeToday: totalOvertimeToday._sum.overtimeHours || 0,
             },
             recentProjects,
             recentReports,

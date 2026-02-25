@@ -19,7 +19,9 @@ interface EmployeeWorkingHours {
     checkIn: string | null
     checkOut: string | null
     workingHours: number
+    overtimeHours: number
     isActive: boolean
+    isOvertime: boolean
     date: string
 }
 
@@ -27,6 +29,7 @@ interface WorkingHoursSummary {
     totalEmployeesPresent: number
     activeEmployees: number
     totalHoursToday: number
+    totalOvertimeToday: number
 }
 
 export function EmployeeWorkingHoursCard() {
@@ -156,6 +159,18 @@ export function EmployeeWorkingHoursCard() {
                         {formatWorkingHours(summary?.totalHoursToday || 0)}
                     </p>
                 </div>
+
+                <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Activity className="h-4 w-4 text-amber-500" />
+                        <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                            Total Overtime
+                        </p>
+                    </div>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                        {formatWorkingHours(summary?.totalOvertimeToday || 0)}
+                    </p>
+                </div>
             </div>
 
             {/* Employee List */}
@@ -189,6 +204,14 @@ export function EmployeeWorkingHoursCard() {
                                                     >
                                                         <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse" />
                                                         Active
+                                                    </Badge>
+                                                )}
+                                                {emp.isOvertime && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs"
+                                                    >
+                                                        OT: {formatWorkingHours(emp.overtimeHours)}
                                                     </Badge>
                                                 )}
                                             </div>

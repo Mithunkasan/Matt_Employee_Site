@@ -17,6 +17,7 @@ model User {
   department       String?
   phone            String?
   avatar           String?
+  activeSessionId  String?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
   lastActivityAt   DateTime?
@@ -110,16 +111,18 @@ model DailyReport {
 }
 
 model Attendance {
-  id         String              @id @default(cuid())
-  date       DateTime            @db.Date
-  notes      String?
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
-  userId     String
-  status     AttendanceStatus    @default(PRESENT)
-  totalHours Float               @default(0)
-  sessions   AttendanceSession[]
-  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String              @id @default(cuid())
+  date          DateTime            @db.Date
+  notes         String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  userId        String
+  status        AttendanceStatus    @default(PRESENT)
+  totalHours    Float               @default(0)
+  isOvertime    Boolean             @default(false)
+  overtimeHours Float               @default(0)
+  sessions      AttendanceSession[]
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date], name: "userId_date")
   @@index([date, status])
@@ -127,14 +130,16 @@ model Attendance {
 }
 
 model AttendanceSession {
-  id           String     @id @default(cuid())
-  checkIn      DateTime
-  checkOut     DateTime?
-  hoursWorked  Float      @default(0)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  attendanceId String
-  attendance   Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  id            String     @id @default(cuid())
+  checkIn       DateTime
+  checkOut      DateTime?
+  hoursWorked   Float      @default(0)
+  isOvertime    Boolean    @default(false)
+  overtimeHours Float      @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  attendanceId  String
+  attendance    Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
 
   @@map("attendance_sessions")
 }

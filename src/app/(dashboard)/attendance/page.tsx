@@ -44,6 +44,8 @@ interface Attendance {
     checkIn?: string | null
     checkOut?: string | null
     workingHours?: number | null
+    overtimeHours?: number | null
+    isOvertime?: boolean
     notes?: string | null
     user: {
         id: string
@@ -354,6 +356,7 @@ export default function AttendancePage() {
                                 <TableHead>Check In</TableHead>
                                 <TableHead>Check Out</TableHead>
                                 <TableHead>Hours</TableHead>
+                                <TableHead>Overtime</TableHead>
                                 <TableHead>Notes</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -401,6 +404,15 @@ export default function AttendancePage() {
                                             {attendance.workingHours
                                                 ? `${attendance.workingHours.toFixed(2)}h`
                                                 : '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {attendance.isOvertime ? (
+                                                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                                                    {attendance.overtimeHours?.toFixed(2)}h
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-slate-400">-</span>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-slate-600 dark:text-slate-300 max-w-[200px] truncate">
                                             {attendance.notes || '-'}

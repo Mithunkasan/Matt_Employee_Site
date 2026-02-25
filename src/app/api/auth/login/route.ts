@@ -48,17 +48,34 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Create session ID for single session enforcement
+        const sessionId = Math.random().toString(36).substring(2, 15)
+
+        // Update user's active session ID in database
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { activeSessionId: sessionId },
+        })
+
         // Create session
         await createSession({
             id: user.id,
             email: user.email,
             name: user.name,
             role: user.role,
+            sessionId: sessionId,
         })
 
         // Record attendance
-        const today = new Date()
+        const now = new Date()
+        const today = new Date(now)
         today.setHours(0, 0, 0, 0)
+
+        // Check for overtime (after 5:30 PM local time)
+        // Note: The user's current time is 2026-02-25T12:49:23+05:30
+        const currentHour = now.getHours()
+        const currentMinute = now.getMinutes()
+        const isOvertime = (currentHour > 17) || (currentHour === 17 && currentMinute > 30)
 
         try {
             // Create or get attendance record for today
@@ -69,11 +86,15 @@ export async function POST(request: NextRequest) {
                         date: today,
                     },
                 },
-                update: {}, // Don't update if already exists
+                update: {
+                    // If it was already marked as overtime, keep it
+                    isOvertime: isOvertime ? true : undefined
+                },
                 create: {
                     userId: user.id,
                     date: today,
                     status: 'PRESENT',
+                    isOvertime: isOvertime,
                 },
             })
 
@@ -81,7 +102,8 @@ export async function POST(request: NextRequest) {
             await prisma.attendanceSession.create({
                 data: {
                     attendanceId: attendance.id,
-                    checkIn: new Date(),
+                    checkIn: now,
+                    isOvertime: isOvertime,
                 },
             })
         } catch (error) {
@@ -96,6 +118,7 @@ export async function POST(request: NextRequest) {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                isOvertimeLogin: isOvertime,
             },
         })
     } catch (error) {

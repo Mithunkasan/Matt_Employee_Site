@@ -74,6 +74,8 @@ export async function GET(request: NextRequest) {
                 checkIn: firstSession?.checkIn || null,
                 checkOut: hasActiveSession ? null : lastSession?.checkOut || null,
                 workingHours: attendance.totalHours,
+                overtimeHours: attendance.overtimeHours,
+                isOvertime: attendance.isOvertime,
                 // Remove sessions from response to keep it clean
                 sessions: undefined,
             }
