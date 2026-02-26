@@ -14,8 +14,10 @@ export async function GET() {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
+        const now = new Date()
+        const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
+        const today = new Date(istNow)
+        today.setUTCHours(0, 0, 0, 0)
 
         // Get all attendance records for today with sessions and user info
         const attendances = await prisma.attendance.findMany({
@@ -53,14 +55,15 @@ export async function GET() {
 
             // Check real-time activity status
             // A person is only "Online" if they have an active session AND
-            // their last activity was within the last 5 minutes.
-            const IDLE_THRESHOLD = 5 * 60 * 1000 // 5 minutes
-            const now = new Date()
+            // their last activity was within the last 10 minutes AND
+            // no stuck key alert is active.
+            const IDLE_THRESHOLD = 10 * 60 * 1000 // 10 minutes
             const lastActivity = attendance.user.lastActivityAt ? new Date(attendance.user.lastActivityAt) : null
 
             const isOnline = !!activeSession &&
                 !!lastActivity &&
-                (now.getTime() - lastActivity.getTime() < IDLE_THRESHOLD)
+                (now.getTime() - lastActivity.getTime() < IDLE_THRESHOLD) &&
+                !attendance.user.stuckKeyAlert
 
             // Calculate total hours from all sessions
             let totalHours = 0
@@ -70,29 +73,25 @@ export async function GET() {
             const thresholdMinute = 30
 
             attendance.sessions.forEach((session: any) => {
-                if (session.checkOut) {
-                    totalHours += session.hoursWorked
-                    totalOvertimeHours += session.overtimeHours || 0
-                } else {
-                    // Session is still active, calculate current working time
-                    const checkIn = new Date(session.checkIn)
-                    const diffInMs = now.getTime() - checkIn.getTime()
-                    const currentSessionHours = diffInMs / (1000 * 60 * 60)
-                    totalHours += currentSessionHours
+                const checkInTime = new Date(session.checkIn)
+                const checkOutTime = session.checkOut ? new Date(session.checkOut) : now
+                const diffInMs = checkOutTime.getTime() - checkInTime.getTime()
+                const hours = diffInMs / (1000 * 60 * 60)
 
-                    // Calculate current overtime if session is still active
-                    let currentOvertime = 0
-                    const threshold = new Date(now)
-                    threshold.setHours(thresholdHour, thresholdMinute, 0, 0)
+                totalHours += hours
 
-                    if (session.isOvertime) {
-                        currentOvertime = currentSessionHours
-                    } else if (now > threshold) {
-                        const otStart = checkIn > threshold ? checkIn : threshold
-                        const otMs = now.getTime() - otStart.getTime()
-                        currentOvertime = otMs / (1000 * 60 * 60)
-                    }
-                    totalOvertimeHours += currentOvertime
+                // Threshold at 5:30 PM IST
+                const istNowForThreshold = new Date(checkInTime.getTime() + (5.5 * 60 * 60 * 1000))
+                const thresholdIST = new Date(istNowForThreshold)
+                thresholdIST.setUTCHours(17, 30, 0, 0)
+                const thresholdUTC = new Date(thresholdIST.getTime() - (5.5 * 60 * 60 * 1000))
+
+                if (session.isOvertime) {
+                    totalOvertimeHours += hours
+                } else if (checkOutTime.getTime() > thresholdUTC.getTime()) {
+                    const otStart = checkInTime.getTime() > thresholdUTC.getTime() ? checkInTime.getTime() : thresholdUTC.getTime()
+                    const otMs = checkOutTime.getTime() - otStart
+                    totalOvertimeHours += Math.max(0, otMs / (1000 * 60 * 60))
                 }
             })
 

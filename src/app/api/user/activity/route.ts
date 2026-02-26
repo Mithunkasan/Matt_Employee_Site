@@ -29,7 +29,7 @@ export async function POST(req: Request) {
             const recentNotification = await prisma.notification.findFirst({
                 where: {
                     userId: alertedUsers[0]?.id,
-                    title: 'Stuck Key Alert',
+                    title: 'Suspicious Activity Alert',
                     message: { contains: session.name },
                     createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) }
                 }
@@ -40,8 +40,8 @@ export async function POST(req: Request) {
                     await prisma.notification.create({
                         data: {
                             userId: user.id,
-                            title: 'Stuck Key Alert',
-                            message: `Suspicious activity detected: Employee ${session.name} (${session.role}) has been pressing a key continuously for over 10 minutes.`,
+                            title: 'Suspicious Activity Alert',
+                            message: `Suspicious activity detected: Employee ${session.name} (${session.role}) may be using automated tools or has a stuck key/button (detected for over 10 minutes).`,
                         }
                     })
                 }

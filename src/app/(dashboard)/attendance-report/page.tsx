@@ -7,7 +7,6 @@ import { PageLoader } from '@/components/shared/loading-spinner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import {
     Table,
     TableBody,
@@ -319,7 +318,7 @@ export default function AttendanceReportPage() {
                 </Card>
 
                 <Card className="bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50 overflow-hidden flex-1">
-                    <ScrollArea className="w-full h-[calc(100vh-280px)] rounded-md border">
+                    <div className="w-full h-[calc(100vh-280px)] rounded-md border overflow-auto">
                         <div className="w-max min-w-full">
                             <Table className="whitespace-nowrap relative">
                                 <TableHeader className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-sm">
@@ -403,8 +402,7 @@ export default function AttendanceReportPage() {
                                 </TableBody>
                             </Table>
                         </div>
-                        <ScrollBar orientation="horizontal" />
-                    </ScrollArea>
+                    </div>
                 </Card>
             </div>
 

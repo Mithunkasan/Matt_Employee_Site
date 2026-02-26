@@ -5,6 +5,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export function getISTDate(): Date {
+  const now = new Date()
+  const offset = 5.5 * 60 * 60 * 1000 // IST is UTC +5:30
+  return new Date(now.getTime() + offset)
+}
+
 export function formatDate(date: Date | string): string {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',

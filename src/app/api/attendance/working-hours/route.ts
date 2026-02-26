@@ -14,8 +14,10 @@ export async function GET() {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
+        const now = new Date()
+        const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
+        const today = new Date(istNow)
+        today.setUTCHours(0, 0, 0, 0)
 
         // Get all today's attendance with user information and sessions
         const attendances = await prisma.attendance.findMany({
@@ -47,39 +49,29 @@ export async function GET() {
             let totalOvertimeHours = 0
             let isActive = false
 
-            const thresholdHour = 17
-            const thresholdMinute = 30
-
             // Calculate total hours from all sessions
             attendance.sessions.forEach((session) => {
-                if (session.checkOut) {
-                    // Session is complete, use the stored hours
-                    totalHours += session.hoursWorked
-                    totalOvertimeHours += session.overtimeHours
-                } else {
-                    // Session is still active, calculate current working time
-                    const now = new Date()
-                    const checkIn = new Date(session.checkIn)
-                    const diffInMs = now.getTime() - checkIn.getTime()
-                    const currentSessionHours = diffInMs / (1000 * 60 * 60) // Convert to hours
-                    totalHours += currentSessionHours
-                    isActive = true
+                const checkInTime = new Date(session.checkIn)
+                const checkOutTime = session.checkOut ? new Date(session.checkOut) : now
+                const diffInMs = checkOutTime.getTime() - checkInTime.getTime()
+                const hours = diffInMs / (1000 * 60 * 60)
 
-                    // Calculate current overtime if session is still active
-                    let currentOvertime = 0
-                    const threshold = new Date(now)
-                    threshold.setHours(thresholdHour, thresholdMinute, 0, 0)
+                totalHours += hours
+                if (!session.checkOut) isActive = true
 
-                    if (session.isOvertime) {
-                        // Started after 5:30 PM
-                        currentOvertime = currentSessionHours
-                    } else if (now > threshold) {
-                        // Started before but currently after 5:30 PM
-                        const otStart = checkIn > threshold ? checkIn : threshold
-                        const otMs = now.getTime() - otStart.getTime()
-                        currentOvertime = otMs / (1000 * 60 * 60)
-                    }
-                    totalOvertimeHours += currentOvertime
+                // Calculate current overtime if session is still active (5:30 PM IST threshold)
+                // The threshold should be based on the check-in date of the session
+                const istCheckInTime = new Date(checkInTime.getTime() + (5.5 * 60 * 60 * 1000))
+                const thresholdIST = new Date(istCheckInTime)
+                thresholdIST.setUTCHours(17, 30, 0, 0) // 5:30 PM IST
+                const thresholdUTC = new Date(thresholdIST.getTime() - (5.5 * 60 * 60 * 1000))
+
+                if (session.isOvertime) {
+                    totalOvertimeHours += hours
+                } else if (checkOutTime.getTime() > thresholdUTC.getTime()) {
+                    const otStart = checkInTime.getTime() > thresholdUTC.getTime() ? checkInTime.getTime() : thresholdUTC.getTime()
+                    const otMs = checkOutTime.getTime() - otStart
+                    totalOvertimeHours += Math.max(0, otMs / (1000 * 60 * 60))
                 }
             })
 

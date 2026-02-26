@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { decrypt, SessionPayload } from '@/lib/auth'
+import { decrypt } from '@/lib/auth'
+import { getClientIpFromHeaders } from '@/lib/request-ip'
 
 // Routes that don't require authentication
 const publicRoutes = ['/login', '/api/auth/login']
@@ -47,6 +48,22 @@ export async function middleware(request: NextRequest) {
     if (new Date(session.expiresAt) < new Date()) {
         const response = pathname.startsWith('/api/')
             ? NextResponse.json({ error: 'Session expired' }, { status: 401 })
+            : NextResponse.redirect(new URL('/login', request.url))
+
+        response.cookies.delete('session')
+        return response
+    }
+
+    // Enforce IP-bound session for one-device login policy
+    const requestIp = getClientIpFromHeaders(request.headers)
+    if (
+        session.ipAddress &&
+        session.ipAddress !== 'unknown' &&
+        requestIp !== 'unknown' &&
+        session.ipAddress !== requestIp
+    ) {
+        const response = pathname.startsWith('/api/')
+            ? NextResponse.json({ error: 'Session IP mismatch' }, { status: 401 })
             : NextResponse.redirect(new URL('/login', request.url))
 
         response.cookies.delete('session')

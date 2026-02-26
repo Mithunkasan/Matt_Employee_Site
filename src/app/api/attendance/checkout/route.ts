@@ -9,8 +9,10 @@ export async function POST() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
+        const now = new Date()
+        const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
+        const today = new Date(istNow)
+        today.setUTCHours(0, 0, 0, 0)
 
         // Find today's attendance record with sessions
         const attendance = await prisma.attendance.findUnique({
@@ -48,26 +50,30 @@ export async function POST() {
 
         const checkOutTime = new Date()
 
-        // Calculate working hours for this session (in hours)
+        // Calculate working hours for this session (in hours) using pure UTC duration
         const diffInMs = checkOutTime.getTime() - new Date(activeSession.checkIn).getTime()
-        const sessionHours = diffInMs / (1000 * 60 * 60) // Convert ms to hours
+        const sessionHours = diffInMs / (1000 * 60 * 60)
         const roundedSessionHours = Math.round(sessionHours * 100) / 100
 
-        // Calculate overtime hours (after 5:30 PM)
-        const threshold = new Date(checkOutTime)
-        threshold.setHours(17, 30, 0, 0)
+        // Calculate overtime threshold (5:30 PM IST) reliably
+        // 1. Get current time in IST mentally
+        const istNowForThreshold = new Date(checkOutTime.getTime() + (5.5 * 60 * 60 * 1000))
+        // 2. Set threshold to 5:30 PM in that shifted date
+        const thresholdIST = new Date(istNowForThreshold)
+        thresholdIST.setUTCHours(17, 30, 0, 0)
+        // 3. Subtract offset to get the real UTC time of 5:30 PM IST
+        const thresholdUTC = new Date(thresholdIST.getTime() - (5.5 * 60 * 60 * 1000))
 
         let sessionOvertimeHours = 0
         if (activeSession.isOvertime) {
-            // Started after 5:30 PM, so all hours are overtime
+            // If session started after 5:30 PM IST, all hours are overtime
             sessionOvertimeHours = roundedSessionHours
-        } else if (checkOutTime > threshold) {
-            // Started before 5:30 PM but ended after
-            const otStart = new Date(activeSession.checkIn) > threshold
-                ? new Date(activeSession.checkIn)
-                : threshold
+        } else if (checkOutTime.getTime() > thresholdUTC.getTime()) {
+            // Started before 5:30 PM IST but ended after
+            const checkInUTC = new Date(activeSession.checkIn)
+            const otStart = checkInUTC.getTime() > thresholdUTC.getTime() ? checkInUTC : thresholdUTC
             const otMs = checkOutTime.getTime() - otStart.getTime()
-            sessionOvertimeHours = Math.round((otMs / (1000 * 60 * 60)) * 100) / 100
+            sessionOvertimeHours = Math.max(0, Math.round((otMs / (1000 * 60 * 60)) * 100) / 100)
         }
 
         // Update the session with checkout time, hours worked, and overtime
@@ -83,7 +89,7 @@ export async function POST() {
             },
         })
 
-        // Calculate total hours and overtime from all sessions
+        // Calculate total hours and overtime from all sessions for this attendance record
         const allSessions = await prisma.attendanceSession.findMany({
             where: {
                 attendanceId: attendance.id,
@@ -96,10 +102,7 @@ export async function POST() {
         // Update attendance total hours and overtime
         const updatedAttendance = await prisma.attendance.update({
             where: {
-                userId_date: {
-                    userId: session.userId,
-                    date: today,
-                },
+                id: attendance.id,
             },
             data: {
                 totalHours: Math.round(totalHours * 100) / 100,
