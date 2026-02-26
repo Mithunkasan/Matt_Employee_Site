@@ -8,8 +8,10 @@ export async function POST() {
 
         if (session) {
             // Record logout time
-            const today = new Date()
-            today.setHours(0, 0, 0, 0)
+            const now = new Date()
+            const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
+            const today = new Date(istNow)
+            today.setUTCHours(0, 0, 0, 0)
 
             try {
                 // Find attendance for today
@@ -66,6 +68,19 @@ export async function POST() {
                 console.error('Failed to record logout time:', error)
                 // Continue with logout even if attendance update fails
             }
+
+            // Clear active auth lock only for the current active session
+            await prisma.user.updateMany({
+                where: {
+                    id: session.userId,
+                    activeSessionId: session.sessionId,
+                },
+                data: {
+                    activeSessionId: null,
+                    activeSessionIp: null,
+                    activeSessionStartedAt: null,
+                },
+            })
         }
 
         await deleteSession()

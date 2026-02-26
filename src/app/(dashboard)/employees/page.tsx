@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/context/auth-context'
 import { Header } from '@/components/layout/header'
 import { PageLoader } from '@/components/shared/loading-spinner'
@@ -70,6 +70,7 @@ export default function EmployeesPage() {
     const [search, setSearch] = useState('')
     const [roleFilter, setRoleFilter] = useState('all')
     const [statusFilter, setStatusFilter] = useState('all')
+    const [domainFilter, setDomainFilter] = useState('all')
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
     const [saving, setSaving] = useState(false)
@@ -235,13 +236,26 @@ export default function EmployeesPage() {
         }
     }
 
+    const domainOptions = useMemo(() => {
+        const uniqueDomains = Array.from(
+            new Set(
+                employees
+                    .map((emp) => emp.department?.trim())
+                    .filter((dept): dept is string => Boolean(dept))
+            )
+        )
+
+        return uniqueDomains.sort((a, b) => a.localeCompare(b))
+    }, [employees])
+
     const filteredEmployees = employees.filter((emp) => {
         const matchesSearch =
             emp.name.toLowerCase().includes(search.toLowerCase()) ||
             emp.email.toLowerCase().includes(search.toLowerCase())
         const matchesRole = roleFilter === 'all' || emp.role === roleFilter
         const matchesStatus = statusFilter === 'all' || emp.status === statusFilter
-        return matchesSearch && matchesRole && matchesStatus
+        const matchesDomain = domainFilter === 'all' || (emp.department || '') === domainFilter
+        return matchesSearch && matchesRole && matchesStatus && matchesDomain
     })
 
     if (loading) {
@@ -335,6 +349,19 @@ export default function EmployeesPage() {
                             <SelectItem value="all">All Status</SelectItem>
                             <SelectItem value="ACTIVE">Active</SelectItem>
                             <SelectItem value="INACTIVE">Inactive</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select value={domainFilter} onValueChange={setDomainFilter}>
+                        <SelectTrigger className="w-full sm:w-[220px]">
+                            <SelectValue placeholder="Domain" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Domains</SelectItem>
+                            {domainOptions.map((domain) => (
+                                <SelectItem key={domain} value={domain}>
+                                    {domain}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                     {canManageEmployees && (
@@ -543,10 +570,16 @@ export default function EmployeesPage() {
                                     <Select
                                         value={formData.department}
                                         onValueChange={(value) => {
+                                            const nextRole = formData.role === 'INTERN' ? 'INTERN' : 'EMPLOYEE'
+                                            const autoDesignation =
+                                                value === 'Data Analytics Team'
+                                                    ? (nextRole === 'INTERN' ? 'Intern' : 'Data Analyst')
+                                                    : ''
+
                                             setFormData(prev => ({
                                                 ...prev,
                                                 department: value,
-                                                designation: '',
+                                                designation: autoDesignation,
                                                 managerId: ''
                                             }))
                                         }}
@@ -572,7 +605,18 @@ export default function EmployeesPage() {
                                     <Select
                                         value={formData.role === 'INTERN' ? 'INTERN' : 'EMPLOYEE'}
                                         onValueChange={(value) => {
-                                            setFormData(prev => ({ ...prev, role: value as any }))
+                                            const selectedRole = value as 'EMPLOYEE' | 'INTERN'
+                                            const autoDesignation =
+                                                formData.department === 'Data Analytics Team'
+                                                    ? (selectedRole === 'INTERN' ? 'Intern' : 'Data Analyst')
+                                                    : formData.designation
+
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                role: selectedRole,
+                                                designation: autoDesignation,
+                                                managerId: ''
+                                            }))
                                         }}
                                     >
                                         <SelectTrigger>
@@ -672,7 +716,7 @@ export default function EmployeesPage() {
                                                     if (dept === 'Data Analytics Team') {
                                                         if (d === 'Team Leader') return emp.role === 'MANAGER' || (emp.designation === 'Manager')
                                                         if (d === 'Team Coordinator') return emp.designation === 'Team Leader' && emp.department === dept
-                                                        if (d === 'Data Analyst' || d === 'Intern') return emp.designation === 'Team Coordinator' && emp.department === dept
+                                                        if (d === 'Data Analyst' || d === 'Intern') return emp.designation === 'Team Leader' && emp.department === dept
                                                     }
                                                     // 🔹 Hardware Logic
                                                     if (dept === 'Hardware Development Team') {

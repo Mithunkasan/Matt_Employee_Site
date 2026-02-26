@@ -55,6 +55,38 @@ interface Attendance {
     }
 }
 
+const IST_TIME_ZONE = 'Asia/Kolkata'
+
+function formatTimeInIST(dateValue?: string | null): string {
+    if (!dateValue) return '-'
+
+    return new Intl.DateTimeFormat('en-IN', {
+        timeZone: IST_TIME_ZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    }).format(new Date(dateValue))
+}
+
+function getISTDateKey(dateValue: Date | string): string {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: IST_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date(dateValue))
+}
+
+function calculateHoursBetween(checkIn?: string | null, checkOut?: string | null): number | null {
+    if (!checkIn || !checkOut) return null
+
+    const diffInMs = new Date(checkOut).getTime() - new Date(checkIn).getTime()
+    if (diffInMs <= 0) return null
+
+    return Math.round((diffInMs / (1000 * 60 * 60)) * 100) / 100
+}
+
 export default function AttendancePage() {
     const { user } = useAuth()
     const [attendances, setAttendances] = useState<Attendance[]>([])
@@ -91,9 +123,9 @@ export default function AttendancePage() {
             a.user.department || '-',
             formatDate(a.date),
             a.status,
-            a.checkIn ? new Date(a.checkIn).toLocaleTimeString() : '-',
-            a.checkOut ? new Date(a.checkOut).toLocaleTimeString() : '-',
-            a.workingHours ? a.workingHours.toFixed(2) : '0',
+            formatTimeInIST(a.checkIn),
+            formatTimeInIST(a.checkOut),
+            (calculateHoursBetween(a.checkIn, a.checkOut) ?? a.workingHours ?? 0).toFixed(2),
             a.notes?.replace(/,/g, ';') || '-'
         ])
 
@@ -131,9 +163,9 @@ export default function AttendancePage() {
                 setAttendances(data.attendances)
 
                 // Check if today's attendance exists
-                const today = new Date().toISOString().split('T')[0]
+                const today = getISTDateKey(new Date())
                 const todayRecord = data.attendances.find(
-                    (a: Attendance) => a.date.split('T')[0] === today && a.user.id === user?.userId
+                    (a: Attendance) => getISTDateKey(a.date) === today && a.user.id === user?.userId
                 )
                 setTodayAttendance(todayRecord || null)
             }
@@ -221,6 +253,7 @@ export default function AttendancePage() {
                             <h2 className="text-lg font-semibold text-white mb-1">Today's Attendance</h2>
                             <p className="text-slate-400 text-sm">
                                 {new Date().toLocaleDateString('en-US', {
+                                    timeZone: IST_TIME_ZONE,
                                     weekday: 'long',
                                     year: 'numeric',
                                     month: 'long',
@@ -241,13 +274,13 @@ export default function AttendancePage() {
                                     {todayAttendance.checkIn && (
                                         <span className="text-sm text-slate-400">
                                             <LogIn className="inline h-4 w-4 mr-1" />
-                                            {new Date(todayAttendance.checkIn).toLocaleTimeString()}
+                                            {formatTimeInIST(todayAttendance.checkIn)}
                                         </span>
                                     )}
                                     {todayAttendance.checkOut && (
                                         <span className="text-sm text-slate-400">
                                             <LogOut className="inline h-4 w-4 mr-1" />
-                                            {new Date(todayAttendance.checkOut).toLocaleTimeString()}
+                                            {formatTimeInIST(todayAttendance.checkOut)}
                                         </span>
                                     )}
                                 </div>
@@ -368,7 +401,11 @@ export default function AttendancePage() {
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                attendances.map((attendance) => (
+                                attendances.map((attendance) => {
+                                    const calculatedHours = calculateHoursBetween(attendance.checkIn, attendance.checkOut)
+                                    const displayHours = calculatedHours ?? attendance.workingHours ?? null
+
+                                    return (
                                     <TableRow key={attendance.id} className="border-slate-100 dark:border-slate-700/30">
                                         {canViewAll && (
                                             <TableCell>
@@ -392,17 +429,17 @@ export default function AttendancePage() {
                                         </TableCell>
                                         <TableCell className="text-slate-600 dark:text-slate-300">
                                             {attendance.checkIn
-                                                ? new Date(attendance.checkIn).toLocaleTimeString()
+                                                ? formatTimeInIST(attendance.checkIn)
                                                 : '-'}
                                         </TableCell>
                                         <TableCell className="text-slate-600 dark:text-slate-300">
                                             {attendance.checkOut
-                                                ? new Date(attendance.checkOut).toLocaleTimeString()
+                                                ? formatTimeInIST(attendance.checkOut)
                                                 : '-'}
                                         </TableCell>
                                         <TableCell className="text-slate-900 dark:text-white font-medium">
-                                            {attendance.workingHours
-                                                ? `${attendance.workingHours.toFixed(2)}h`
+                                            {displayHours !== null
+                                                ? `${displayHours.toFixed(2)}h`
                                                 : '-'}
                                         </TableCell>
                                         <TableCell>
@@ -414,11 +451,12 @@ export default function AttendancePage() {
                                                 <span className="text-slate-400">-</span>
                                             )}
                                         </TableCell>
-                                        <TableCell className="text-slate-600 dark:text-slate-300 max-w-[200px] truncate">
-                                            {attendance.notes || '-'}
-                                        </TableCell>
+                                    <TableCell className="text-slate-600 dark:text-slate-300 max-w-[200px] truncate">
+                                        {attendance.notes || '-'}
+                                    </TableCell>
                                     </TableRow>
-                                ))
+                                    )
+                                })
                             )}
                         </TableBody>
                     </Table>

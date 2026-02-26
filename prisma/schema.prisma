@@ -18,6 +18,8 @@ model User {
   phone            String?
   avatar           String?
   activeSessionId  String?
+  activeSessionIp  String?
+  activeSessionStartedAt DateTime?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
   lastActivityAt   DateTime?

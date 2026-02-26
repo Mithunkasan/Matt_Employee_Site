@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import prisma from '@/lib/prisma'
 import { createSession } from '@/lib/auth'
 import { loginSchema } from '@/lib/validations'
+import { getClientIpFromHeaders } from '@/lib/request-ip'
 
 export async function POST(request: NextRequest) {
     try {
@@ -18,6 +19,8 @@ export async function POST(request: NextRequest) {
         }
 
         const { email, password } = validation.data
+        const clientIp = getClientIpFromHeaders(request.headers)
+        const activeWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
         // Find user
         const user = await prisma.user.findUnique({
@@ -48,13 +51,48 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // One active login per IP across devices/browsers
+        if (clientIp !== 'unknown') {
+            const existingIpSession = await prisma.user.findFirst({
+                where: {
+                    activeSessionIp: clientIp,
+                    activeSessionId: { not: null },
+                    activeSessionStartedAt: { gte: activeWindowStart },
+                },
+                select: { id: true, email: true },
+            })
+
+            if (existingIpSession && existingIpSession.id !== user.id) {
+                return NextResponse.json(
+                    { error: 'This device/IP already has an active login. Please logout first.' },
+                    { status: 409 }
+                )
+            }
+        }
+
+        // Block second login for the same user while an active session exists
+        if (
+            user.activeSessionId &&
+            user.activeSessionStartedAt &&
+            user.activeSessionStartedAt >= activeWindowStart
+        ) {
+            return NextResponse.json(
+                { error: 'You are already logged in on another tab/device. Please logout first.' },
+                { status: 409 }
+            )
+        }
+
         // Create session ID for single session enforcement
         const sessionId = Math.random().toString(36).substring(2, 15)
 
-        // Update user's active session ID in database
+        // Update user's active session state in database
         await prisma.user.update({
             where: { id: user.id },
-            data: { activeSessionId: sessionId },
+            data: {
+                activeSessionId: sessionId,
+                activeSessionIp: clientIp,
+                activeSessionStartedAt: new Date(),
+            },
         })
 
         // Create session
@@ -64,18 +102,20 @@ export async function POST(request: NextRequest) {
             name: user.name,
             role: user.role,
             sessionId: sessionId,
+            ipAddress: clientIp,
         })
 
         // Record attendance
         const now = new Date()
-        const today = new Date(now)
-        today.setHours(0, 0, 0, 0)
+        // Get current day in IST
+        const istDate = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
+        const todayStr = istDate.toISOString().split('T')[0]
+        const today = new Date(`${todayStr}T00:00:00Z`)
 
-        // Check for overtime (after 5:30 PM local time)
-        // Note: The user's current time is 2026-02-25T12:49:23+05:30
-        const currentHour = now.getHours()
-        const currentMinute = now.getMinutes()
-        const isOvertime = (currentHour > 17) || (currentHour === 17 && currentMinute > 30)
+        // Check if it's currently overtime (after 5:30 PM IST)
+        const thresholdIST = new Date(istDate)
+        thresholdIST.setUTCHours(17, 30, 0, 0)
+        const isOvertime = istDate.getTime() > thresholdIST.getTime()
 
         try {
             // Create or get attendance record for today

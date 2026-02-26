@@ -62,20 +62,46 @@ export async function GET(request: NextRequest) {
         })
 
         // Transform to include computed fields for backward compatibility
+        const now = new Date()
         const transformedAttendances = attendances.map(attendance => {
             const firstSession = attendance.sessions[0]
             const lastSession = attendance.sessions[attendance.sessions.length - 1]
-
-            // Check if there's an active session (no checkOut)
             const hasActiveSession = attendance.sessions.some(s => !s.checkOut)
+
+            // Recalculate working hours from sessions to be 100% accurate
+            let totalHours = 0
+            let totalOvertimeHours = 0
+
+            attendance.sessions.forEach(session => {
+                const checkInTime = new Date(session.checkIn)
+                const checkOutTime = session.checkOut ? new Date(session.checkOut) : now
+                const diffInMs = checkOutTime.getTime() - checkInTime.getTime()
+                const hours = diffInMs / (1000 * 60 * 60)
+
+                totalHours += hours
+
+                // Handle overtime (5:30 PM IST threshold)
+                const istNowForThreshold = new Date(checkInTime.getTime() + (5.5 * 60 * 60 * 1000))
+                const thresholdIST = new Date(istNowForThreshold)
+                thresholdIST.setUTCHours(17, 30, 0, 0)
+                const thresholdUTC = new Date(thresholdIST.getTime() - (5.5 * 60 * 60 * 1000))
+
+                if (session.isOvertime) {
+                    totalOvertimeHours += hours
+                } else if (checkOutTime.getTime() > thresholdUTC.getTime()) {
+                    const otStart = checkInTime.getTime() > thresholdUTC.getTime() ? checkInTime.getTime() : thresholdUTC.getTime()
+                    const otMs = checkOutTime.getTime() - otStart
+                    totalOvertimeHours += Math.max(0, otMs / (1000 * 60 * 60))
+                }
+            })
 
             return {
                 ...attendance,
                 checkIn: firstSession?.checkIn || null,
                 checkOut: hasActiveSession ? null : lastSession?.checkOut || null,
-                workingHours: attendance.totalHours,
-                overtimeHours: attendance.overtimeHours,
-                isOvertime: attendance.isOvertime,
+                workingHours: Math.round(totalHours * 100) / 100,
+                overtimeHours: Math.round(totalOvertimeHours * 100) / 100,
+                isOvertime: totalOvertimeHours > 0,
                 // Remove sessions from response to keep it clean
                 sessions: undefined,
             }
@@ -110,10 +136,10 @@ export async function POST(request: NextRequest) {
         }
 
         const { status, date, notes } = validation.data
-        const attendanceDate = date ? new Date(date) : new Date()
-
-        // Normalize date to start of day
-        attendanceDate.setHours(0, 0, 0, 0)
+        const inputDate = date ? new Date(date) : new Date()
+        const istDate = new Date(inputDate.getTime() + (5.5 * 60 * 60 * 1000))
+        const todayStr = istDate.toISOString().split('T')[0]
+        const attendanceDate = new Date(`${todayStr}T00:00:00Z`)
 
         // Check if attendance already exists for this date
         const existingAttendance = await prisma.attendance.findUnique({
