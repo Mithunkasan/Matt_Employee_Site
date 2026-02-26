@@ -68,8 +68,10 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // One active login per IP across devices/browsers
-        if (clientIp !== 'unknown') {
+        const shouldEnforceSingleLogin = user.role !== 'ADMIN'
+
+        // One active login per IP across devices/browsers (non-admin only)
+        if (shouldEnforceSingleLogin && clientIp !== 'unknown') {
             const existingIpSession = await prisma.user.findFirst({
                 where: {
                     activeSessionId: {
@@ -87,8 +89,9 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Block second login for the same user while an active session exists
+        // Block second login for the same user while an active session exists (non-admin only)
         if (
+            shouldEnforceSingleLogin &&
             user.activeSessionId &&
             (() => {
                 const parsed = parseSessionLockToken(user.activeSessionId)

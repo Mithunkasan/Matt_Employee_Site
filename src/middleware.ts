@@ -57,6 +57,7 @@ export async function middleware(request: NextRequest) {
     // Enforce IP-bound session for one-device login policy
     const requestIp = getClientIpFromHeaders(request.headers)
     if (
+        session.role !== 'ADMIN' &&
         session.ipAddress &&
         session.ipAddress !== 'unknown' &&
         requestIp !== 'unknown' &&
