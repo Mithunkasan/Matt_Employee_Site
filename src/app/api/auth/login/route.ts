@@ -5,6 +5,23 @@ import { createSession } from '@/lib/auth'
 import { loginSchema } from '@/lib/validations'
 import { getClientIpFromHeaders } from '@/lib/request-ip'
 
+function buildSessionLockToken(ip: string, sessionId: string, timestamp: number): string {
+    return `ip:${ip}|sid:${sessionId}|ts:${timestamp}`
+}
+
+function parseSessionLockToken(token?: string | null): { ip: string; sid: string; ts: number } | null {
+    if (!token) return null
+
+    const match = token.match(/^ip:(.+)\|sid:([^|]+)\|ts:(\d+)$/)
+    if (!match) return null
+
+    return {
+        ip: match[1],
+        sid: match[2],
+        ts: Number(match[3]),
+    }
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
@@ -20,7 +37,7 @@ export async function POST(request: NextRequest) {
 
         const { email, password } = validation.data
         const clientIp = getClientIpFromHeaders(request.headers)
-        const activeWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        const activeWindowStartMs = Date.now() - 24 * 60 * 60 * 1000
 
         // Find user
         const user = await prisma.user.findUnique({
@@ -55,9 +72,9 @@ export async function POST(request: NextRequest) {
         if (clientIp !== 'unknown') {
             const existingIpSession = await prisma.user.findFirst({
                 where: {
-                    activeSessionIp: clientIp,
-                    activeSessionId: { not: null },
-                    activeSessionStartedAt: { gte: activeWindowStart },
+                    activeSessionId: {
+                        startsWith: `ip:${clientIp}|`,
+                    },
                 },
                 select: { id: true, email: true },
             })
@@ -73,8 +90,10 @@ export async function POST(request: NextRequest) {
         // Block second login for the same user while an active session exists
         if (
             user.activeSessionId &&
-            user.activeSessionStartedAt &&
-            user.activeSessionStartedAt >= activeWindowStart
+            (() => {
+                const parsed = parseSessionLockToken(user.activeSessionId)
+                return parsed ? parsed.ts >= activeWindowStartMs : true
+            })()
         ) {
             return NextResponse.json(
                 { error: 'You are already logged in on another tab/device. Please logout first.' },
@@ -84,14 +103,13 @@ export async function POST(request: NextRequest) {
 
         // Create session ID for single session enforcement
         const sessionId = Math.random().toString(36).substring(2, 15)
+        const lockToken = buildSessionLockToken(clientIp, sessionId, Date.now())
 
         // Update user's active session state in database
         await prisma.user.update({
             where: { id: user.id },
             data: {
-                activeSessionId: sessionId,
-                activeSessionIp: clientIp,
-                activeSessionStartedAt: new Date(),
+                activeSessionId: lockToken,
             },
         })
 
@@ -101,7 +119,7 @@ export async function POST(request: NextRequest) {
             email: user.email,
             name: user.name,
             role: user.role,
-            sessionId: sessionId,
+            sessionId: lockToken,
             ipAddress: clientIp,
         })
 
