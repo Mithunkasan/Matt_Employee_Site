@@ -3,6 +3,19 @@ import prisma from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
 import { getClientIpFromHeaders } from '@/lib/request-ip'
 
+function parseSessionLockToken(token?: string | null): { ip: string; sid: string; ts: number } | null {
+    if (!token) return null
+
+    const match = token.match(/^ip:(.+)\|sid:([^|]+)\|ts:(\d+)$/)
+    if (!match) return null
+
+    return {
+        ip: match[1],
+        sid: match[2],
+        ts: Number(match[3]),
+    }
+}
+
 export async function GET(request: Request) {
     try {
         const session = await getSession()
@@ -15,27 +28,23 @@ export async function GET(request: Request) {
         }
 
         const clientIp = getClientIpFromHeaders(request.headers)
-        const activeWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        const activeWindowStartMs = Date.now() - 24 * 60 * 60 * 1000
 
         // Single session enforcement (except for Admin)
         if (session.role !== 'ADMIN') {
             const user = await prisma.user.findUnique({
                 where: { id: session.userId },
-                select: {
-                    activeSessionId: true,
-                    activeSessionIp: true,
-                    activeSessionStartedAt: true,
-                }
+                select: { activeSessionId: true }
             })
 
+            const activeToken = parseSessionLockToken(user?.activeSessionId)
             const isSessionIdMismatch = !user || user.activeSessionId !== session.sessionId
             const isIpMismatch =
-                user?.activeSessionIp &&
+                !!activeToken &&
+                activeToken.ip !== 'unknown' &&
                 clientIp !== 'unknown' &&
-                user.activeSessionIp !== clientIp
-            const isStaleSession =
-                !!user?.activeSessionStartedAt &&
-                user.activeSessionStartedAt < activeWindowStart
+                activeToken.ip !== clientIp
+            const isStaleSession = !!activeToken && activeToken.ts < activeWindowStartMs
 
             if (isSessionIdMismatch || isIpMismatch || isStaleSession) {
                 // Another session is active, or user not found

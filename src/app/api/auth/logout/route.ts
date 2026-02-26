@@ -77,8 +77,6 @@ export async function POST() {
                 },
                 data: {
                     activeSessionId: null,
-                    activeSessionIp: null,
-                    activeSessionStartedAt: null,
                 },
             })
         }
