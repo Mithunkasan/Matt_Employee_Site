@@ -81,6 +81,26 @@ export async function POST(request: NextRequest) {
         }
 
         const { startDate, endDate, reason } = validation.data
+        const requestStartDate = new Date(startDate)
+        const requestEndDate = new Date(endDate)
+
+        // Non-admin users get 1 free leave per month; subsequent requests in the same month are LOP
+        let isLossOfPay = false
+        if (session.role !== 'ADMIN') {
+            const monthStart = new Date(requestStartDate.getFullYear(), requestStartDate.getMonth(), 1)
+            const monthEnd = new Date(requestStartDate.getFullYear(), requestStartDate.getMonth() + 1, 0, 23, 59, 59, 999)
+
+            const approvedLeavesThisMonth = await prisma.leaveRequest.count({
+                where: {
+                    userId: session.userId,
+                    status: 'APPROVED',
+                    startDate: { lte: monthEnd },
+                    endDate: { gte: monthStart },
+                },
+            })
+
+            isLossOfPay = approvedLeavesThisMonth >= 1
+        }
 
         // Get user details for notification
         const user = await prisma.user.findUnique({
@@ -92,8 +112,8 @@ export async function POST(request: NextRequest) {
         const leave = await prisma.leaveRequest.create({
             data: {
                 userId: session.userId,
-                startDate: new Date(startDate),
-                endDate: new Date(endDate),
+                startDate: requestStartDate,
+                endDate: requestEndDate,
                 reason,
             },
         })
@@ -118,7 +138,7 @@ export async function POST(request: NextRequest) {
             data: notifications,
         })
 
-        return NextResponse.json({ leave }, { status: 201 })
+        return NextResponse.json({ leave, isLossOfPay }, { status: 201 })
     } catch (error) {
         console.error('Create leave error:', error)
         return NextResponse.json(

@@ -21,9 +21,10 @@ interface LeaveRequestButtonProps {
     approvedLeavesCount?: number
 }
 
-export function LeaveRequestButton({ approvedLeavesCount = 0 }: LeaveRequestButtonProps) {
+export function LeaveRequestButton({ approvedLeavesCount: _approvedLeavesCount = 0 }: LeaveRequestButtonProps) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
+    void _approvedLeavesCount
     const [formData, setFormData] = useState({
         startDate: '',
         endDate: '',
@@ -44,15 +45,14 @@ export function LeaveRequestButton({ approvedLeavesCount = 0 }: LeaveRequestButt
             const data = await res.json()
 
             if (res.ok) {
-                // Check if this is first leave (free) or subsequent (loss of pay)
-                if (approvedLeavesCount === 0) {
-                    toast.success('Leave request submitted! This is your free leave.', {
-                        description: 'Admin will review your request shortly.',
+                if (data.isLossOfPay) {
+                    toast.warning('Loss of Pay alert: You have already used one leave day this month.', {
+                        description: 'This request will be treated as Loss of Pay (LOP).',
+                        duration: 6000,
                     })
                 } else {
-                    toast.warning('Leave request submitted! This will be Loss of Pay (LOP).', {
-                        description: `You've already used 1 free leave. Subsequent leaves are unpaid.`,
-                        duration: 6000,
+                    toast.success('Leave request submitted successfully.', {
+                        description: 'Admin will review your request shortly.',
                     })
                 }
 
@@ -71,8 +71,6 @@ export function LeaveRequestButton({ approvedLeavesCount = 0 }: LeaveRequestButt
         }
     }
 
-    const isFirstLeave = approvedLeavesCount === 0
-
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -88,16 +86,6 @@ export function LeaveRequestButton({ approvedLeavesCount = 0 }: LeaveRequestButt
                     <DialogTitle>Request Leave</DialogTitle>
                     <DialogDescription>
                         Submit your leave request to admin for approval
-                        {isFirstLeave && (
-                            <span className="block mt-2 text-emerald-600 dark:text-emerald-400 font-medium">
-                                ✓ Your first leave is free!
-                            </span>
-                        )}
-                        {!isFirstLeave && (
-                            <span className="block mt-2 text-orange-600 dark:text-orange-400 font-medium">
-                                ⚠️ This will be a Loss of Pay (LOP) leave
-                            </span>
-                        )}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -147,15 +135,6 @@ export function LeaveRequestButton({ approvedLeavesCount = 0 }: LeaveRequestButt
                             className="resize-none"
                         />
                     </div>
-
-                    {!isFirstLeave && (
-                        <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
-                            <p className="text-sm text-orange-800 dark:text-orange-200">
-                                <strong>Note:</strong> You have already used {approvedLeavesCount} free leave.
-                                This leave will be marked as Loss of Pay (LOP).
-                            </p>
-                        </div>
-                    )}
 
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setOpen(false)}>

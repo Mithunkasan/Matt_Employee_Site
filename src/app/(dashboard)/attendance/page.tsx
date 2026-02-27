@@ -87,6 +87,21 @@ function calculateHoursBetween(checkIn?: string | null, checkOut?: string | null
     return Math.round((diffInMs / (1000 * 60 * 60)) * 100) / 100
 }
 
+function dedupeByISTDate(records: Attendance[]): Attendance[] {
+    const seen = new Set<string>()
+    const unique: Attendance[] = []
+
+    for (const record of records) {
+        const key = `${record.user.id}-${getISTDateKey(record.date)}`
+        if (!seen.has(key)) {
+            seen.add(key)
+            unique.push(record)
+        }
+    }
+
+    return unique
+}
+
 export default function AttendancePage() {
     const { user } = useAuth()
     const [attendances, setAttendances] = useState<Attendance[]>([])
@@ -160,11 +175,16 @@ export default function AttendancePage() {
             const res = await fetch(url)
             if (res.ok) {
                 const data = await res.json()
-                setAttendances(data.attendances)
+                const fetchedAttendances: Attendance[] = data.attendances || []
+                const normalizedAttendances = canViewAll
+                    ? fetchedAttendances
+                    : dedupeByISTDate(fetchedAttendances)
+
+                setAttendances(normalizedAttendances)
 
                 // Check if today's attendance exists
                 const today = getISTDateKey(new Date())
-                const todayRecord = data.attendances.find(
+                const todayRecord = normalizedAttendances.find(
                     (a: Attendance) => getISTDateKey(a.date) === today && a.user.id === user?.userId
                 )
                 setTodayAttendance(todayRecord || null)
@@ -281,6 +301,12 @@ export default function AttendancePage() {
                                         <span className="text-sm text-slate-400">
                                             <LogOut className="inline h-4 w-4 mr-1" />
                                             {formatTimeInIST(todayAttendance.checkOut)}
+                                        </span>
+                                    )}
+                                    {!canViewAll && (
+                                        <span className="text-sm text-slate-300">
+                                            <Clock className="inline h-4 w-4 mr-1" />
+                                            {(todayAttendance.workingHours ?? 0).toFixed(2)}h
                                         </span>
                                     )}
                                 </div>
@@ -403,7 +429,9 @@ export default function AttendancePage() {
                             ) : (
                                 attendances.map((attendance) => {
                                     const calculatedHours = calculateHoursBetween(attendance.checkIn, attendance.checkOut)
-                                    const displayHours = calculatedHours ?? attendance.workingHours ?? null
+                                    const displayHours = canViewAll
+                                        ? (calculatedHours ?? attendance.workingHours ?? null)
+                                        : (attendance.workingHours ?? null)
 
                                     return (
                                     <TableRow key={attendance.id} className="border-slate-100 dark:border-slate-700/30">

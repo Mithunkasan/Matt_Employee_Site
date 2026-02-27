@@ -85,7 +85,7 @@ export default function ProjectsPage() {
         githubLink: '',
     })
 
-    const canCreateProjects = user?.role === 'ADMIN' || user?.role === 'BA' || user?.role === 'PA'
+    const canCreateProjects = user?.role === 'ADMIN' || user?.role === 'HR' || user?.role === 'BA' || user?.role === 'PA'
     const canUpdateProjects = user?.role === 'ADMIN' || user?.role === 'BA' || user?.role === 'PA' || user?.role === 'MANAGER' || user?.role === 'TEAM_LEADER'
     const isAdmin = user?.role === 'ADMIN'
 

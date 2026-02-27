@@ -131,6 +131,76 @@ export async function POST(request: NextRequest) {
         const isOvertime = istDate.getTime() > thresholdIST.getTime()
 
         try {
+            // Auto-close any stale active sessions from previous days
+            const staleSessions = await prisma.attendanceSession.findMany({
+                where: {
+                    checkOut: null,
+                    attendance: {
+                        userId: user.id,
+                        date: { lt: today },
+                    },
+                },
+                include: {
+                    attendance: {
+                        select: {
+                            id: true,
+                            date: true,
+                        },
+                    },
+                },
+            })
+
+            for (const staleSession of staleSessions) {
+                const checkInTime = new Date(staleSession.checkIn)
+
+                // Auto-checkout at 6:00 PM IST of the attendance date.
+                const y = staleSession.attendance.date.getUTCFullYear()
+                const m = staleSession.attendance.date.getUTCMonth()
+                const d = staleSession.attendance.date.getUTCDate()
+                const autoCheckoutAt = new Date(Date.UTC(y, m, d, 12, 30, 0, 0)) // 18:00 IST
+                const checkOutTime = autoCheckoutAt.getTime() > checkInTime.getTime() ? autoCheckoutAt : loginTime
+
+                const sessionHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60)
+                const roundedSessionHours = Math.max(0, Math.round(sessionHours * 100) / 100)
+
+                // Overtime threshold: 5:30 PM IST (12:00 UTC) on the attendance date
+                const thresholdUTC = new Date(Date.UTC(y, m, d, 12, 0, 0, 0))
+                let sessionOvertimeHours = 0
+                if (staleSession.isOvertime) {
+                    sessionOvertimeHours = roundedSessionHours
+                } else if (checkOutTime.getTime() > thresholdUTC.getTime()) {
+                    const otStart = checkInTime.getTime() > thresholdUTC.getTime() ? checkInTime.getTime() : thresholdUTC.getTime()
+                    const otMs = checkOutTime.getTime() - otStart
+                    sessionOvertimeHours = Math.max(0, Math.round((otMs / (1000 * 60 * 60)) * 100) / 100)
+                }
+
+                await prisma.attendanceSession.update({
+                    where: { id: staleSession.id },
+                    data: {
+                        checkOut: checkOutTime,
+                        hoursWorked: roundedSessionHours,
+                        overtimeHours: sessionOvertimeHours,
+                        isOvertime: staleSession.isOvertime || sessionOvertimeHours > 0,
+                    },
+                })
+
+                const allSessions = await prisma.attendanceSession.findMany({
+                    where: { attendanceId: staleSession.attendanceId },
+                })
+
+                const totalHours = allSessions.reduce((sum, s) => sum + (s.hoursWorked || 0), 0)
+                const totalOvertimeHours = allSessions.reduce((sum, s) => sum + (s.overtimeHours || 0), 0)
+
+                await prisma.attendance.update({
+                    where: { id: staleSession.attendanceId },
+                    data: {
+                        totalHours: Math.round(totalHours * 100) / 100,
+                        overtimeHours: Math.round(totalOvertimeHours * 100) / 100,
+                        isOvertime: totalOvertimeHours > 0,
+                    },
+                })
+            }
+
             // Create or get attendance record for today
             const attendance = await prisma.attendance.upsert({
                 where: {
@@ -140,6 +210,8 @@ export async function POST(request: NextRequest) {
                     },
                 },
                 update: {
+                    // Logging in means user is present today.
+                    status: 'PRESENT',
                     // If it was already marked as overtime, keep it
                     isOvertime: isOvertime ? true : undefined
                 },
@@ -151,14 +223,23 @@ export async function POST(request: NextRequest) {
                 },
             })
 
-            // Create a new attendance session for this login
-            await prisma.attendanceSession.create({
-                data: {
+            // Create a new attendance session only if there is no active one for today.
+            const activeSession = await prisma.attendanceSession.findFirst({
+                where: {
                     attendanceId: attendance.id,
-                    checkIn: loginTime,
-                    isOvertime: isOvertime,
+                    checkOut: null,
                 },
             })
+
+            if (!activeSession) {
+                await prisma.attendanceSession.create({
+                    data: {
+                        attendanceId: attendance.id,
+                        checkIn: loginTime,
+                        isOvertime: isOvertime,
+                    },
+                })
+            }
         } catch (error) {
             console.error('Failed to record attendance:', error)
             // Don't block login if attendance fails
