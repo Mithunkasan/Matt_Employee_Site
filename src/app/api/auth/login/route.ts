@@ -75,25 +75,25 @@ export async function POST(request: NextRequest) {
 
         const shouldEnforceSingleLogin = user.role !== 'ADMIN'
 
-        // Block second login for the same user while an active session exists (non-admin only)
-        if (
-            shouldEnforceSingleLogin &&
-            user.activeSessionId &&
-            (() => {
-                const parsed = parseSessionLockToken(user.activeSessionId)
-                if (!parsed) {
-                    // Allow login for legacy/invalid lock formats and replace with current token format.
-                    return false
-                }
+        // Single-session rule for non-admin users:
+        // - First login of the IST day can come from any device.
+        // - Same-day login from a different IP is blocked.
+        // - Same-day login from the same IP is allowed and rotates session lock (old session becomes invalid).
+        if (shouldEnforceSingleLogin && user.activeSessionId) {
+            const parsed = parseSessionLockToken(user.activeSessionId)
+            const isSameIstDay = !!parsed && getIstDateKey(parsed.ts) === getIstDateKey(now)
+            const isDifferentKnownIp =
+                !!parsed &&
+                parsed.ip !== 'unknown' &&
+                clientIp !== 'unknown' &&
+                parsed.ip !== clientIp
 
-                // Daily reset: only block if the existing lock was created on the same IST date.
-                return getIstDateKey(parsed.ts) === getIstDateKey(now)
-            })()
-        ) {
-            return NextResponse.json(
-                { error: 'You are already logged in on another tab/device. Please logout first.' },
-                { status: 409 }
-            )
+            if (isSameIstDay && isDifferentKnownIp) {
+                return NextResponse.json(
+                    { error: 'This account is already active on another device today.' },
+                    { status: 409 }
+                )
+            }
         }
 
         // Create session ID for single session enforcement
