@@ -203,7 +203,8 @@ export default function EmployeesPage() {
             })
 
             if (res.ok) {
-                toast.success('Employee deleted')
+                const data = await res.json()
+                toast.success(data.message || 'Employee deleted')
                 fetchEmployees()
             } else {
                 const data = await res.json()
