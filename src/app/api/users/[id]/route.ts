@@ -206,11 +206,44 @@ export async function DELETE(request: NextRequest, { params }: Params) {
             )
         }
 
-        await prisma.user.delete({
-            where: { id },
+        await prisma.$transaction(async (tx) => {
+            // Remove user-owned request records
+            await tx.leaveRequest.deleteMany({ where: { userId: id } })
+            await tx.workFromHomeRequest.deleteMany({ where: { userId: id } })
+
+            // Remove user's reply ownership on reports (keep report data)
+            await tx.dailyReport.updateMany({
+                where: { repliedById: id },
+                data: { repliedById: null, repliedAt: null },
+            })
+
+            // Keep shared entities intact for other users
+            await tx.project.updateMany({
+                where: { assignedToId: id },
+                data: { assignedToId: null },
+            })
+            await tx.task.updateMany({
+                where: { assignedToId: id },
+                data: { assignedToId: null },
+            })
+            await tx.user.updateMany({
+                where: { managerId: id },
+                data: { managerId: null },
+            })
+
+            // Preserve projects for others by transferring creator ownership to the deleting admin
+            await tx.project.updateMany({
+                where: { createdById: id },
+                data: { createdById: session.userId },
+            })
+
+            // Finally delete the user (remaining personal linked data with cascade is removed)
+            await tx.user.delete({
+                where: { id },
+            })
         })
 
-        return NextResponse.json({ message: 'User deleted successfully' })
+        return NextResponse.json({ message: 'User and related personal data deleted successfully.' })
     } catch (error) {
         console.error('Delete user error:', error)
         return NextResponse.json(
