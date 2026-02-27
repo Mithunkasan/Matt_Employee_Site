@@ -22,6 +22,11 @@ function parseSessionLockToken(token?: string | null): { ip: string; sid: string
     }
 }
 
+function getIstDateKey(timestamp: number): string {
+    const istDate = new Date(timestamp + (5.5 * 60 * 60 * 1000))
+    return istDate.toISOString().split('T')[0]
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
@@ -37,7 +42,7 @@ export async function POST(request: NextRequest) {
 
         const { email, password } = validation.data
         const clientIp = getClientIpFromHeaders(request.headers)
-        const activeWindowStartMs = Date.now() - 24 * 60 * 60 * 1000
+        const now = Date.now()
 
         // Find user
         const user = await prisma.user.findUnique({
@@ -70,32 +75,19 @@ export async function POST(request: NextRequest) {
 
         const shouldEnforceSingleLogin = user.role !== 'ADMIN'
 
-        // One active login per IP across devices/browsers (non-admin only)
-        if (shouldEnforceSingleLogin && clientIp !== 'unknown') {
-            const existingIpSession = await prisma.user.findFirst({
-                where: {
-                    activeSessionId: {
-                        startsWith: `ip:${clientIp}|`,
-                    },
-                },
-                select: { id: true, email: true },
-            })
-
-            if (existingIpSession && existingIpSession.id !== user.id) {
-                return NextResponse.json(
-                    { error: 'This device/IP already has an active login. Please logout first.' },
-                    { status: 409 }
-                )
-            }
-        }
-
         // Block second login for the same user while an active session exists (non-admin only)
         if (
             shouldEnforceSingleLogin &&
             user.activeSessionId &&
             (() => {
                 const parsed = parseSessionLockToken(user.activeSessionId)
-                return parsed ? parsed.ts >= activeWindowStartMs : true
+                if (!parsed) {
+                    // Allow login for legacy/invalid lock formats and replace with current token format.
+                    return false
+                }
+
+                // Daily reset: only block if the existing lock was created on the same IST date.
+                return getIstDateKey(parsed.ts) === getIstDateKey(now)
             })()
         ) {
             return NextResponse.json(
@@ -106,7 +98,7 @@ export async function POST(request: NextRequest) {
 
         // Create session ID for single session enforcement
         const sessionId = Math.random().toString(36).substring(2, 15)
-        const lockToken = buildSessionLockToken(clientIp, sessionId, Date.now())
+        const lockToken = buildSessionLockToken(clientIp, sessionId, now)
 
         // Update user's active session state in database
         await prisma.user.update({
@@ -127,9 +119,9 @@ export async function POST(request: NextRequest) {
         })
 
         // Record attendance
-        const now = new Date()
+        const loginTime = new Date()
         // Get current day in IST
-        const istDate = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
+        const istDate = new Date(loginTime.getTime() + (5.5 * 60 * 60 * 1000))
         const todayStr = istDate.toISOString().split('T')[0]
         const today = new Date(`${todayStr}T00:00:00Z`)
 
@@ -163,7 +155,7 @@ export async function POST(request: NextRequest) {
             await prisma.attendanceSession.create({
                 data: {
                     attendanceId: attendance.id,
-                    checkIn: now,
+                    checkIn: loginTime,
                     isOvertime: isOvertime,
                 },
             })
