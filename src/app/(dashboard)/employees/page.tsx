@@ -276,7 +276,7 @@ export default function EmployeesPage() {
 
             <div className="p-6">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
                     <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                         <p className="text-2xl font-bold text-slate-900 dark:text-white">
                             {employees.filter(e => e.status === 'ACTIVE').length}
@@ -297,9 +297,21 @@ export default function EmployeesPage() {
                     </Card>
                     <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                         <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                            {employees.filter(e => e.role === 'TEAM_COORDINATOR').length}
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Team Coordinators</p>
+                    </Card>
+                    <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
                             {employees.filter(e => e.role === 'EMPLOYEE').length}
                         </p>
                         <p className="text-sm text-slate-500 dark:text-slate-400">Employees</p>
+                    </Card>
+                    <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                            {employees.filter(e => e.role === 'INTERN').length}
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Interns</p>
                     </Card>
                     <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                         <p className="text-2xl font-bold text-slate-900 dark:text-white">

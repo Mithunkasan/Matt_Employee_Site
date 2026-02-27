@@ -102,7 +102,7 @@ export function canAccessBA(role: Role): boolean {
 }
 
 export function canCreateProjects(role: Role): boolean {
-    return role === 'ADMIN' || role === 'BA' || role === 'PA'
+    return role === 'ADMIN' || role === 'HR' || role === 'BA' || role === 'PA'
 }
 
 export function canUpdateProjects(role: Role): boolean {
