@@ -68,7 +68,7 @@ const navItems: NavItem[] = [
         title: 'Leaves',
         href: '/leaves',
         icon: <Calendar className="h-5 w-5" />,
-        roles: ['ADMIN', 'HR', 'BA', 'PA', 'MANAGER', 'TEAM_LEADER', 'TEAM_COORDINATOR', 'EMPLOYEE', 'INTERN'],
+        roles: ['ADMIN'],
     },
     {
         title: 'WFH Requests',

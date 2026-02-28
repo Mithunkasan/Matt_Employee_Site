@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -22,6 +23,7 @@ interface LeaveRequestButtonProps {
 }
 
 export function LeaveRequestButton({ approvedLeavesCount: _approvedLeavesCount = 0 }: LeaveRequestButtonProps) {
+    const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     void _approvedLeavesCount
@@ -46,8 +48,8 @@ export function LeaveRequestButton({ approvedLeavesCount: _approvedLeavesCount =
 
             if (res.ok) {
                 if (data.isLossOfPay) {
-                    toast.warning('Loss of Pay alert: You have already used one leave day this month.', {
-                        description: 'This request will be treated as Loss of Pay (LOP).',
+                    toast.warning('Loss of Pay.', {
+                        description: 'Only one leave day is paid in each 5th-to-5th cycle. Additional day(s) are treated as LOP.',
                         duration: 6000,
                     })
                 } else {
@@ -59,8 +61,8 @@ export function LeaveRequestButton({ approvedLeavesCount: _approvedLeavesCount =
                 setOpen(false)
                 setFormData({ startDate: '', endDate: '', reason: '' })
 
-                // Refresh the page to show updated data
-                window.location.reload()
+                // Refresh data without a full page reload so toast remains visible
+                router.refresh()
             } else {
                 toast.error(data.error || 'Failed to submit leave request')
             }
