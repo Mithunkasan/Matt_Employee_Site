@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '@/context/auth-context'
 import { Header } from '@/components/layout/header'
 import { PageLoader } from '@/components/shared/loading-spinner'
@@ -36,7 +36,7 @@ interface LeaveRequest {
 }
 
 export default function LeaveRequestsPage() {
-    const { user } = useAuth()
+    const { user, loading: authLoading } = useAuth()
     const [leaves, setLeaves] = useState<LeaveRequest[]>([])
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
@@ -45,13 +45,9 @@ export default function LeaveRequestsPage() {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     })
 
-    const isAdmin = user?.role === 'ADMIN' || user?.role === 'HR'
+    const isAdmin = user?.role === 'ADMIN'
 
-    useEffect(() => {
-        fetchLeaves()
-    }, [filter, selectedMonth])
-
-    const fetchLeaves = async () => {
+    const fetchLeaves = useCallback(async () => {
         try {
             const statusParam = filter === 'all' ? '' : `&status=${filter.toUpperCase()}`
             const monthParam = `&month=${selectedMonth}`
@@ -65,7 +61,21 @@ export default function LeaveRequestsPage() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [filter, selectedMonth])
+
+    useEffect(() => {
+        if (authLoading) {
+            return
+        }
+
+        if (!isAdmin) {
+            setLoading(false)
+            setLeaves([])
+            return
+        }
+
+        fetchLeaves()
+    }, [authLoading, isAdmin, fetchLeaves])
 
     const downloadCSV = () => {
         if (leaves.length === 0) {
@@ -151,6 +161,21 @@ export default function LeaveRequestsPage() {
             <div className="min-h-screen">
                 <Header title="Leave Requests" description="Manage employee leave requests" />
                 <PageLoader />
+            </div>
+        )
+    }
+
+    if (!isAdmin) {
+        return (
+            <div className="min-h-screen">
+                <Header title="Leave Requests" description="Access restricted" />
+                <div className="p-6">
+                    <Card className="p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                        <p className="text-slate-600 dark:text-slate-300">
+                            Only Admin can view, approve, or reject leave requests.
+                        </p>
+                    </Card>
+                </div>
             </div>
         )
     }

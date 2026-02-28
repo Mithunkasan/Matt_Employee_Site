@@ -15,8 +15,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        // Only Admin and HR can manage leaves
-        if (session.role !== 'ADMIN' && session.role !== 'HR') {
+        // Only Admin can manage leaves
+        if (session.role !== 'ADMIN') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
