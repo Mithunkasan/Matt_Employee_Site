@@ -277,7 +277,7 @@ export default function EmployeesPage() {
 
             <div className="p-6">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-10 gap-4 mb-6">
                     <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                         <p className="text-2xl font-bold text-slate-900 dark:text-white">
                             {employees.filter(e => e.status === 'ACTIVE').length}
@@ -325,6 +325,18 @@ export default function EmployeesPage() {
                             {employees.filter(e => e.role === 'HR').length}
                         </p>
                         <p className="text-sm text-slate-500 dark:text-slate-400">HR</p>
+                    </Card>
+                    <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                            {employees.filter(e => e.department === 'Software Trainer' && e.designation === 'Senior').length}
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Senior Trainers</p>
+                    </Card>
+                    <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                            {employees.filter(e => e.department === 'Software Trainer' && e.designation === 'Junior').length}
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Junior Trainers</p>
                     </Card>
                 </div>
 
@@ -608,6 +620,7 @@ export default function EmployeesPage() {
                                             <SelectItem value="Hardware Development Team">Hardware Development</SelectItem>
                                             <SelectItem value="Project Development Team">Project Development</SelectItem>
                                             <SelectItem value="Digital Marketing Team">Digital Marketing</SelectItem>
+                                            <SelectItem value="Software Trainer">Software Trainer</SelectItem>
                                             <SelectItem value="Administration">Administration / Other</SelectItem>
                                         </SelectContent>
                                     </Select>
@@ -665,6 +678,16 @@ export default function EmployeesPage() {
                                             if (['Manager', 'HR', 'Business Associate'].includes(value)) {
                                                 managerId = 'Administrative'
                                             }
+                                            if (formData.department === 'Software Trainer') {
+                                                if (value === 'Senior') {
+                                                    managerId = 'Administrative'
+                                                } else if (value === 'Junior') {
+                                                    const seniorInDomain = employees.find(
+                                                        emp => emp.department === 'Software Trainer' && emp.designation === 'Senior'
+                                                    )
+                                                    managerId = seniorInDomain?.id || ''
+                                                }
+                                            }
 
                                             setFormData(prev => ({ ...prev, designation: value, role, managerId }))
                                         }}
@@ -683,6 +706,7 @@ export default function EmployeesPage() {
                                                 if (dept === "Hardware Development Team") return ["Team Leader", "Hardware Developer", "Intern"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
                                                 if (dept === "Project Development Team") return ["Team Leader", "Developer", "Intern"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
                                                 if (dept === "Digital Marketing Team") return ["Manager", "Team Leader", "Marketing Executive", "Intern"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
+                                                if (dept === "Software Trainer") return ["Senior", "Junior"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
                                                 if (dept === "Administration") return ["HR", "HR Trainee", "Business Associate"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)
                                                 return null
                                             })()}
@@ -747,6 +771,9 @@ export default function EmployeesPage() {
                                                     // 🔹 Admin Logic
                                                     if (dept === 'Administration') {
                                                         if (d === 'HR Trainee') return emp.designation === 'HR'
+                                                    }
+                                                    if (dept === 'Software Trainer') {
+                                                        if (d === 'Junior') return emp.designation === 'Senior' && emp.department === dept
                                                     }
 
                                                     return false

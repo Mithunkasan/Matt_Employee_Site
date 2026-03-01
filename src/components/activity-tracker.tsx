@@ -3,36 +3,40 @@
 import { useEffect, useRef } from 'react'
 import { useAuth } from '@/context/auth-context'
 
-const IDLE_TIMEOUT = 10 * 60 * 1000 // 10 minutes
-const STUCK_KEY_TIMEOUT = 10 * 60 * 1000 // 10 minutes
-const INTERVAL_TIMEOUT = 10 * 60 * 1000 // 10 minutes
-const PING_INTERVAL = 1 * 60 * 1000 // 1 minute periodic update
+const IDLE_TIMEOUT = 5 * 60 * 1000 // 5 minutes
+const STUCK_KEY_TIMEOUT = 5 * 60 * 1000 // 5 minutes
+const REPEATED_INTERVAL_TIMEOUT = 5 * 60 * 1000 // 5 minutes
+const UPDATE_THROTTLE_MS = 60 * 1000 // 1 minute
 
 export function ActivityTracker() {
-    const { user, logout } = useAuth()
+    const { user } = useAuth()
     const idleTimerRef = useRef<NodeJS.Timeout | null>(null)
-    const pingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+    const hiddenRef = useRef<boolean>(false)
+    const suspiciousTriggeredRef = useRef<boolean>(false)
     const keyPressRef = useRef<{ [key: string]: number }>({})
-    const lastActivityRef = useRef<number>(Date.now())
 
-    // Interval tracking for both keys and clicks
-    const intervalTrackerRef = useRef<{
-        lastActionTime: number,
-        interval: number,
-        startTime: number,
-        type: 'none' | 'key' | 'click',
+    // Repeated fixed-interval key press detection
+    const repeatedKeyTrackerRef = useRef<{
+        key: string
+        lastEventAt: number
+        intervalMs: number
+        patternStartAt: number
         triggered: boolean
-    }>({ lastActionTime: 0, interval: 0, startTime: 0, type: 'none', triggered: false })
+    }>({
+        key: '',
+        lastEventAt: 0,
+        intervalMs: 0,
+        patternStartAt: 0,
+        triggered: false,
+    })
 
-    const stuckKeyAlertRef = useRef<boolean>(false)
     const lastUpdateRef = useRef<number>(0)
 
-    const updateActivity = async (isIdle: boolean, stuckKey: boolean) => {
+    const updateActivity = async (payload: { isIdle: boolean; stuckKey: boolean; eventType: string }) => {
         if (!user) return
 
         const now = Date.now()
-        // Throttle updates unless it's a suspicious event or it's been a while
-        if (!stuckKey && !isIdle && (now - lastUpdateRef.current < 60000)) {
+        if (!payload.stuckKey && !payload.isIdle && (now - lastUpdateRef.current < UPDATE_THROTTLE_MS)) {
             return
         }
 
@@ -40,86 +44,96 @@ export function ActivityTracker() {
             await fetch('/api/user/activity', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ isIdle, stuckKey }),
+                body: JSON.stringify(payload),
             })
             lastUpdateRef.current = now
-        } catch (error) {
-            // Silently fail activity updates
+        } catch {
+            // Intentionally ignored to keep UX uninterrupted.
         }
     }
 
-    const resetIdleTimer = () => {
-        if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
-        lastActivityRef.current = Date.now()
-
-        // We are active now, update server if needed
-        if (lastUpdateRef.current === 0 || (Date.now() - lastUpdateRef.current > 60000)) {
-            updateActivity(false, stuckKeyAlertRef.current)
+    const triggerAutoCheckout = (reason: 'idle' | 'suspicious') => {
+        if (reason === 'suspicious') {
+            if (suspiciousTriggeredRef.current) return
+            suspiciousTriggeredRef.current = true
         }
+        updateActivity({
+            isIdle: reason === 'idle',
+            stuckKey: reason === 'suspicious',
+            eventType: reason === 'idle' ? 'idle_timeout' : 'suspicious_pattern',
+        })
+
+        if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+    }
+
+    const armIdleTimer = () => {
+        if (hiddenRef.current) return
+        if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
 
         idleTimerRef.current = setTimeout(() => {
-            console.warn('User marked as idle (10 minutes)')
-            // The server will naturally show them as offline based on lastActivityAt
-            updateActivity(true, stuckKeyAlertRef.current)
+            triggerAutoCheckout('idle')
         }, IDLE_TIMEOUT)
     }
 
-    const checkIntervalAction = (type: 'key' | 'click') => {
+    const markActive = () => {
+        if (hiddenRef.current || !user) return
+        if (suspiciousTriggeredRef.current) {
+            suspiciousTriggeredRef.current = false
+        }
+
+        updateActivity({ isIdle: false, stuckKey: false, eventType: 'active' })
+        armIdleTimer()
+    }
+
+    const checkRepeatedSameKeyPattern = (key: string) => {
         const now = Date.now()
-        const tracker = intervalTrackerRef.current
+        const tracker = repeatedKeyTrackerRef.current
 
-        if (tracker.type === type) {
-            const currentInterval = now - tracker.lastActionTime
+        if (tracker.key !== key) {
+            tracker.key = key
+            tracker.lastEventAt = now
+            tracker.intervalMs = 0
+            tracker.patternStartAt = 0
+            tracker.triggered = false
+            return
+        }
 
-            // Checking for ~2 second interval (1.9s to 2.1s)
-            const targetInterval = 2000
-            const variance = 100
+        const currentInterval = now - tracker.lastEventAt
+        const variance = 150
 
-            if (Math.abs(currentInterval - targetInterval) < variance) {
-                if (tracker.startTime === 0) {
-                    tracker.startTime = tracker.lastActionTime
-                }
+        if (tracker.intervalMs === 0) {
+            tracker.intervalMs = currentInterval
+            tracker.patternStartAt = tracker.lastEventAt
+            tracker.lastEventAt = now
+            return
+        }
 
-                if (now - tracker.startTime > INTERVAL_TIMEOUT) {
-                    if (!tracker.triggered) {
-                        tracker.triggered = true
-                        stuckKeyAlertRef.current = true
-                        updateActivity(false, true)
-                        console.warn(`Suspicious ${type} interval detected over 10 minutes`)
-                    }
-                }
-            } else {
-                // Interval broken
-                tracker.startTime = 0
+        if (Math.abs(currentInterval - tracker.intervalMs) <= variance) {
+            if (!tracker.triggered && now - tracker.patternStartAt >= REPEATED_INTERVAL_TIMEOUT) {
+                tracker.triggered = true
+                triggerAutoCheckout('suspicious')
             }
         } else {
-            tracker.type = type
-            tracker.startTime = 0
+            tracker.intervalMs = currentInterval
+            tracker.patternStartAt = tracker.lastEventAt
             tracker.triggered = false
         }
 
-        tracker.lastActionTime = now
+        tracker.lastEventAt = now
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
+        if (hiddenRef.current) return
+        markActive()
+        checkRepeatedSameKeyPattern(e.code || e.key)
+
         const now = Date.now()
-        resetIdleTimer()
-        checkIntervalAction('key')
-
-        const trackedRoles = ['HR', 'BA', 'MANAGER', 'TEAM_LEADER', 'EMPLOYEE', 'INTERN']
-        const shouldReport = user && trackedRoles.includes(user.role)
-
-        // Stuck Key Detection
         if (!keyPressRef.current[e.key]) {
             keyPressRef.current[e.key] = now
         } else {
             const duration = now - keyPressRef.current[e.key]
             if (duration > STUCK_KEY_TIMEOUT) {
-                if (shouldReport && !stuckKeyAlertRef.current) {
-                    stuckKeyAlertRef.current = true
-                    updateActivity(false, true)
-                    console.warn('Stuck key detected over 10 minutes')
-                }
+                triggerAutoCheckout('suspicious')
             }
         }
     }
@@ -128,42 +142,64 @@ export function ActivityTracker() {
         delete keyPressRef.current[e.key]
     }
 
-    const handleMouseAction = () => {
-        resetIdleTimer()
-        checkIntervalAction('click')
-    }
-
     useEffect(() => {
         if (!user) return
 
-        let lastActivityTime = 0
         const handleActivity = () => {
             const now = Date.now()
-            if (now - lastActivityTime > 1000) {
-                lastActivityTime = now
-                resetIdleTimer()
+            if (now - lastUpdateRef.current > 1000) {
+                markActive()
             }
         }
 
+        const handleVisibilityChange = () => {
+            hiddenRef.current = document.hidden
+            if (document.hidden) {
+                if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+                return
+            }
+
+            markActive()
+            armIdleTimer()
+        }
+
+        const handleWindowBlur = () => {
+            if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+        }
+
+        const handleWindowFocus = () => {
+            if (document.hidden) return
+            markActive()
+            armIdleTimer()
+        }
+
         window.addEventListener('mousemove', handleActivity)
-        window.addEventListener('mousedown', handleMouseAction)
+        window.addEventListener('mousedown', handleActivity)
         window.addEventListener('keydown', handleKeyDown)
         window.addEventListener('keyup', handleKeyUp)
         window.addEventListener('touchstart', handleActivity)
         window.addEventListener('scroll', handleActivity)
+        window.addEventListener('blur', handleWindowBlur)
+        window.addEventListener('focus', handleWindowFocus)
+        document.addEventListener('visibilitychange', handleVisibilityChange)
 
-        updateActivity(false, false)
-        resetIdleTimer()
+        hiddenRef.current = document.hidden
+        if (!hiddenRef.current) {
+            updateActivity({ isIdle: false, stuckKey: false, eventType: 'session_start' })
+            armIdleTimer()
+        }
 
         return () => {
             window.removeEventListener('mousemove', handleActivity)
-            window.removeEventListener('mousedown', handleMouseAction)
+            window.removeEventListener('mousedown', handleActivity)
             window.removeEventListener('keydown', handleKeyDown)
             window.removeEventListener('keyup', handleKeyUp)
             window.removeEventListener('touchstart', handleActivity)
             window.removeEventListener('scroll', handleActivity)
+            window.removeEventListener('blur', handleWindowBlur)
+            window.removeEventListener('focus', handleWindowFocus)
+            document.removeEventListener('visibilitychange', handleVisibilityChange)
             if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
-            if (pingIntervalRef.current) clearInterval(pingIntervalRef.current)
         }
     }, [user])
 

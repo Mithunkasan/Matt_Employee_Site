@@ -55,9 +55,9 @@ export async function GET() {
 
             // Check real-time activity status
             // A person is only "Online" if they have an active session AND
-            // their last activity was within the last 10 minutes AND
+            // their last activity was within the last 5 minutes AND
             // no stuck key alert is active.
-            const IDLE_THRESHOLD = 10 * 60 * 1000 // 10 minutes
+            const IDLE_THRESHOLD = 5 * 60 * 1000 // 5 minutes
             const lastActivity = attendance.user.lastActivityAt ? new Date(attendance.user.lastActivityAt) : null
 
             const isOnline = !!activeSession &&
