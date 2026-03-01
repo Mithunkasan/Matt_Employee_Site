@@ -14,7 +14,7 @@ interface User {
 interface AuthContextType {
     user: User | null
     loading: boolean
-    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string; sundayAlert?: string }>
     logout: () => Promise<void>
     refreshSession: () => Promise<void>
 }
@@ -64,7 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     role: data.user.role,
                 })
                 router.push('/dashboard')
-                return { success: true }
+                return {
+                    success: true,
+                    sundayAlert: typeof data.sundayAlert === 'string' ? data.sundayAlert : undefined,
+                }
             } else {
                 return { success: false, error: data.error }
             }

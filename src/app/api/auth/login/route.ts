@@ -5,6 +5,8 @@ import { createSession } from '@/lib/auth'
 import { loginSchema } from '@/lib/validations'
 import { getClientIpFromHeaders } from '@/lib/request-ip'
 
+const ACTIVE_SESSION_TIMEOUT_MS = 15 * 60 * 1000
+
 function buildSessionLockToken(ip: string, sessionId: string, timestamp: number): string {
     return `ip:${ip}|sid:${sessionId}|ts:${timestamp}`
 }
@@ -74,23 +76,28 @@ export async function POST(request: NextRequest) {
         }
 
         const shouldEnforceSingleLogin = user.role !== 'ADMIN'
+        const activeToken = parseSessionLockToken(user.activeSessionId)
+        const lastSeenAtMs = user.lastActivityAt ? new Date(user.lastActivityAt).getTime() : null
+        const lockTimestamp = activeToken?.ts ?? 0
+        const isActiveLockFresh =
+            (lastSeenAtMs !== null && now - lastSeenAtMs < ACTIVE_SESSION_TIMEOUT_MS) ||
+            (lockTimestamp > 0 && now - lockTimestamp < ACTIVE_SESSION_TIMEOUT_MS)
 
-        // Single-session rule for non-admin users:
-        // - First login of the IST day can come from any device.
-        // - Same-day login from a different IP is blocked.
-        // - Same-day login from the same IP is allowed and rotates session lock (old session becomes invalid).
-        if (shouldEnforceSingleLogin && user.activeSessionId) {
-            const parsed = parseSessionLockToken(user.activeSessionId)
-            const isSameIstDay = !!parsed && getIstDateKey(parsed.ts) === getIstDateKey(now)
-            const isDifferentKnownIp =
-                !!parsed &&
-                parsed.ip !== 'unknown' &&
+        // Strict single-device rule for non-admin users.
+        // Same device can relogin immediately; different device is blocked while lock is fresh.
+        // If lock is stale (offline/shutdown/inactive), allow a fresh login.
+        if (shouldEnforceSingleLogin && user.activeSessionId && isActiveLockFresh) {
+            const isSameKnownIp =
+                !!activeToken &&
+                activeToken.ip !== 'unknown' &&
                 clientIp !== 'unknown' &&
-                parsed.ip !== clientIp
+                activeToken.ip === clientIp
 
-            if (isSameIstDay && isDifferentKnownIp) {
+            if (isSameKnownIp) {
+                // allow relogin from same device/network
+            } else {
                 return NextResponse.json(
-                    { error: 'This account is already active on another device today.' },
+                    { error: 'This account is already active on another device. Please logout first.' },
                     { status: 409 }
                 )
             }
@@ -105,6 +112,7 @@ export async function POST(request: NextRequest) {
             where: { id: user.id },
             data: {
                 activeSessionId: lockToken,
+                lastActivityAt: new Date(),
             },
         })
 
@@ -129,8 +137,40 @@ export async function POST(request: NextRequest) {
         const thresholdIST = new Date(istDate)
         thresholdIST.setUTCHours(17, 30, 0, 0)
         const isOvertime = istDate.getTime() > thresholdIST.getTime()
+        const isSundayLogin = istDate.getUTCDay() === 0
 
         try {
+            if (isSundayLogin && user.role !== 'ADMIN') {
+                const admins = await prisma.user.findMany({
+                    where: { role: 'ADMIN' },
+                    select: { id: true },
+                })
+
+                const sundayDateKey = getIstDateKey(now)
+                const dedupeKey = `[sunday-login][user:${user.id}][date:${sundayDateKey}]`
+
+                for (const admin of admins) {
+                    const exists = await prisma.notification.findFirst({
+                        where: {
+                            userId: admin.id,
+                            title: 'Sunday Login Alert',
+                            message: { contains: dedupeKey },
+                            createdAt: { gte: new Date(now - 24 * 60 * 60 * 1000) },
+                        },
+                    })
+
+                    if (exists) continue
+
+                    await prisma.notification.create({
+                        data: {
+                            userId: admin.id,
+                            title: 'Sunday Login Alert',
+                            message: `${dedupeKey} ${user.name} (${user.email}) logged in on Sunday.`,
+                        },
+                    })
+                }
+            }
+
             // Auto-close any stale active sessions from previous days
             const staleSessions = await prisma.attendanceSession.findMany({
                 where: {
@@ -253,7 +293,9 @@ export async function POST(request: NextRequest) {
                 email: user.email,
                 role: user.role,
                 isOvertimeLogin: isOvertime,
+                isSundayLogin,
             },
+            sundayAlert: isSundayLogin ? 'Today is Sunday.' : null,
         })
     } catch (error) {
         console.error('Login error:', error)

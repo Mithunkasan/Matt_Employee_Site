@@ -32,6 +32,9 @@ export default function LoginPage() {
         const result = await login(email, password)
 
         if (result.success) {
+            if (result.sundayAlert) {
+                window.alert(result.sundayAlert)
+            }
             toast.success('Welcome back!')
         } else {
             toast.error(result.error || 'Login failed')
