@@ -243,11 +243,35 @@ export default function AttendancePage() {
         }
     }
 
+    const handleCheckIn = async () => {
+        try {
+            const res = await fetch('/api/attendance/clock', {
+                method: 'POST',
+            })
+
+            if (res.ok) {
+                await fetch('/api/user/activity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isIdle: false, stuckKey: false, eventType: 'manual_checkin' }),
+                })
+                toast.success('Checked in successfully')
+                fetchAttendances()
+            } else {
+                const data = await res.json()
+                toast.error(data.error || 'Failed to check in')
+            }
+        } catch (error) {
+            toast.error('Network error')
+        }
+    }
+
     // Calculate stats
     const myAttendances = attendances.filter((a) => a.user.id === user?.userId)
     const presentDays = myAttendances.filter((a) => a.status === 'PRESENT').length
     const absentDays = myAttendances.filter((a) => a.status === 'ABSENT').length
     const leaveDays = myAttendances.filter((a) => a.status === 'LEAVE').length
+    const isActiveSession = !!todayAttendance && todayAttendance.status === 'PRESENT' && !todayAttendance.checkOut
 
     if (loading) {
         return (
@@ -310,23 +334,42 @@ export default function AttendancePage() {
                                         </span>
                                     )}
                                 </div>
-                                {todayAttendance.status === 'PRESENT' && !todayAttendance.checkOut && (
-                                    <Button onClick={handleCheckout} variant="secondary">
-                                        <LogOut className="h-4 w-4 mr-2" />
-                                        Check Out
-                                    </Button>
+                                {!canViewAll && (
+                                    <div className="flex items-center gap-2">
+                                        <Button onClick={handleCheckIn} variant="secondary" disabled={isActiveSession}>
+                                            <LogIn className="h-4 w-4 mr-2" />
+                                            Check In
+                                        </Button>
+                                        <Button onClick={handleCheckout} variant="secondary" disabled={!isActiveSession}>
+                                            <LogOut className="h-4 w-4 mr-2" />
+                                            Check Out
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
                         ) : (
-                            // Hide Mark Attendance button for Admin users
-                            user?.role !== 'ADMIN' && (
-                                <Button
-                                    onClick={() => setMarkDialogOpen(true)}
-                                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-                                >
-                                    <CalendarCheck className="h-4 w-4 mr-2" />
-                                    Mark Attendance
-                                </Button>
+                            canViewAll ? (
+                                // Hide Mark Attendance button for Admin users
+                                user?.role !== 'ADMIN' && (
+                                    <Button
+                                        onClick={() => setMarkDialogOpen(true)}
+                                        className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+                                    >
+                                        <CalendarCheck className="h-4 w-4 mr-2" />
+                                        Mark Attendance
+                                    </Button>
+                                )
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <Button onClick={handleCheckIn} variant="secondary">
+                                        <LogIn className="h-4 w-4 mr-2" />
+                                        Check In
+                                    </Button>
+                                    <Button onClick={handleCheckout} variant="secondary" disabled>
+                                        <LogOut className="h-4 w-4 mr-2" />
+                                        Check Out
+                                    </Button>
+                                </div>
                             )
                         )}
                     </div>
