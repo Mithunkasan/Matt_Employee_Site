@@ -225,14 +225,11 @@ export function EmployeeActivityDashboard() {
                                                 variant="outline"
                                                 className={employee.isOnline
                                                     ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
-                                                    : employee.user.isIdle
-                                                        ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20'
-                                                        : 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20'
+                                                    : 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20'
                                                 }
                                             >
-                                                <div className={`h-2 w-2 rounded-full mr-2 ${employee.isOnline ? 'bg-emerald-500 animate-pulse' :
-                                                    employee.user.isIdle ? 'bg-amber-500 animate-pulse' : 'bg-slate-500'}`} />
-                                                {employee.isOnline ? 'Online' : employee.user.isIdle ? 'Idle' : 'Offline'}
+                                                <div className={`h-2 w-2 rounded-full mr-2 ${employee.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
+                                                {employee.isOnline ? 'Online' : 'Offline'}
                                             </Badge>
                                             {employee.user.stuckKeyAlert && (
                                                 <Badge variant="destructive" className="text-[10px] py-0 px-2 animate-bounce">

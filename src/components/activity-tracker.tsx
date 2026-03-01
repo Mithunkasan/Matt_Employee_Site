@@ -13,7 +13,7 @@ export function ActivityTracker() {
     const idleTimerRef = useRef<NodeJS.Timeout | null>(null)
     const hiddenRef = useRef<boolean>(false)
     const suspiciousTriggeredRef = useRef<boolean>(false)
-    const autoLogoutTriggeredRef = useRef<boolean>(false)
+    const logoutTriggeredRef = useRef<boolean>(false)
     const keyPressRef = useRef<{ [key: string]: number }>({})
 
     // Repeated fixed-interval key press detection
@@ -55,9 +55,9 @@ export function ActivityTracker() {
         }
     }
 
-    const triggerAutoLogout = async () => {
-        if (autoLogoutTriggeredRef.current) return
-        autoLogoutTriggeredRef.current = true
+    const triggerLogout = async () => {
+        if (logoutTriggeredRef.current) return
+        logoutTriggeredRef.current = true
         await logout()
     }
 
@@ -66,16 +66,15 @@ export function ActivityTracker() {
             if (suspiciousTriggeredRef.current) return
             suspiciousTriggeredRef.current = true
         }
-        const activityResult = await updateActivity({
+        await updateActivity({
             isIdle: reason === 'idle',
             stuckKey: reason === 'suspicious',
             eventType: reason === 'idle' ? 'idle_timeout' : 'suspicious_pattern',
         })
 
         if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
-        if (activityResult?.checkedOut) {
-            await triggerAutoLogout()
-        }
+        // Auto-checkout should not force logout.
+        // Employee can manually check in again later.
     }
 
     const armIdleTimer = () => {
@@ -156,7 +155,7 @@ export function ActivityTracker() {
 
     useEffect(() => {
         if (!user) return
-        autoLogoutTriggeredRef.current = false
+        logoutTriggeredRef.current = false
 
         const handleActivity = () => {
             const now = Date.now()
@@ -187,7 +186,7 @@ export function ActivityTracker() {
         }
 
         const handleOffline = () => {
-            void triggerAutoLogout()
+            void triggerLogout()
         }
 
         const sendLogoutBeacon = () => {
