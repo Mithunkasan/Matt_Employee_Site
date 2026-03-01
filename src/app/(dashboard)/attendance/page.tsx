@@ -33,7 +33,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { CalendarCheck, Clock, LogIn, LogOut, CheckCircle2, XCircle, Calendar, Download } from 'lucide-react'
+import { Clock, LogIn, LogOut, CheckCircle2, XCircle, Calendar, Download } from 'lucide-react'
 import { formatDate, getStatusColor } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -121,6 +121,7 @@ export default function AttendancePage() {
     })
 
     const canViewAll = user?.role === 'ADMIN' || user?.role === 'HR'
+    const canUseCheckInOut = user?.role !== 'ADMIN'
 
     const downloadCSV = () => {
         if (attendances.length === 0) {
@@ -327,14 +328,14 @@ export default function AttendancePage() {
                                             {formatTimeInIST(todayAttendance.checkOut)}
                                         </span>
                                     )}
-                                    {!canViewAll && (
+                                    {canUseCheckInOut && (
                                         <span className="text-sm text-slate-300">
                                             <Clock className="inline h-4 w-4 mr-1" />
                                             {(todayAttendance.workingHours ?? 0).toFixed(2)}h
                                         </span>
                                     )}
                                 </div>
-                                {!canViewAll && (
+                                {canUseCheckInOut && (
                                     <div className="flex items-center gap-2">
                                         <Button onClick={handleCheckIn} variant="secondary" disabled={isActiveSession}>
                                             <LogIn className="h-4 w-4 mr-2" />
@@ -348,18 +349,7 @@ export default function AttendancePage() {
                                 )}
                             </div>
                         ) : (
-                            canViewAll ? (
-                                // Hide Mark Attendance button for Admin users
-                                user?.role !== 'ADMIN' && (
-                                    <Button
-                                        onClick={() => setMarkDialogOpen(true)}
-                                        className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-                                    >
-                                        <CalendarCheck className="h-4 w-4 mr-2" />
-                                        Mark Attendance
-                                    </Button>
-                                )
-                            ) : (
+                            canUseCheckInOut ? (
                                 <div className="flex items-center gap-2">
                                     <Button onClick={handleCheckIn} variant="secondary">
                                         <LogIn className="h-4 w-4 mr-2" />
@@ -370,6 +360,8 @@ export default function AttendancePage() {
                                         Check Out
                                     </Button>
                                 </div>
+                            ) : (
+                                <></>
                             )
                         )}
                     </div>
