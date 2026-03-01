@@ -9,10 +9,11 @@ const REPEATED_INTERVAL_TIMEOUT = 5 * 60 * 1000 // 5 minutes
 const UPDATE_THROTTLE_MS = 60 * 1000 // 1 minute
 
 export function ActivityTracker() {
-    const { user } = useAuth()
+    const { user, logout } = useAuth()
     const idleTimerRef = useRef<NodeJS.Timeout | null>(null)
     const hiddenRef = useRef<boolean>(false)
     const suspiciousTriggeredRef = useRef<boolean>(false)
+    const autoLogoutTriggeredRef = useRef<boolean>(false)
     const keyPressRef = useRef<{ [key: string]: number }>({})
 
     // Repeated fixed-interval key press detection
@@ -37,33 +38,44 @@ export function ActivityTracker() {
 
         const now = Date.now()
         if (!payload.stuckKey && !payload.isIdle && (now - lastUpdateRef.current < UPDATE_THROTTLE_MS)) {
-            return
+            return { success: true, checkedOut: false }
         }
 
         try {
-            await fetch('/api/user/activity', {
+            const response = await fetch('/api/user/activity', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             })
+            const data = await response.json().catch(() => ({ success: false, checkedOut: false }))
             lastUpdateRef.current = now
+            return data
         } catch {
-            // Intentionally ignored to keep UX uninterrupted.
+            return { success: false, checkedOut: false }
         }
     }
 
-    const triggerAutoCheckout = (reason: 'idle' | 'suspicious') => {
+    const triggerAutoLogout = async () => {
+        if (autoLogoutTriggeredRef.current) return
+        autoLogoutTriggeredRef.current = true
+        await logout()
+    }
+
+    const triggerAutoCheckout = async (reason: 'idle' | 'suspicious') => {
         if (reason === 'suspicious') {
             if (suspiciousTriggeredRef.current) return
             suspiciousTriggeredRef.current = true
         }
-        updateActivity({
+        const activityResult = await updateActivity({
             isIdle: reason === 'idle',
             stuckKey: reason === 'suspicious',
             eventType: reason === 'idle' ? 'idle_timeout' : 'suspicious_pattern',
         })
 
         if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+        if (activityResult?.checkedOut) {
+            await triggerAutoLogout()
+        }
     }
 
     const armIdleTimer = () => {
@@ -71,7 +83,7 @@ export function ActivityTracker() {
         if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
 
         idleTimerRef.current = setTimeout(() => {
-            triggerAutoCheckout('idle')
+            void triggerAutoCheckout('idle')
         }, IDLE_TIMEOUT)
     }
 
@@ -133,7 +145,7 @@ export function ActivityTracker() {
         } else {
             const duration = now - keyPressRef.current[e.key]
             if (duration > STUCK_KEY_TIMEOUT) {
-                triggerAutoCheckout('suspicious')
+                void triggerAutoCheckout('suspicious')
             }
         }
     }
@@ -144,6 +156,7 @@ export function ActivityTracker() {
 
     useEffect(() => {
         if (!user) return
+        autoLogoutTriggeredRef.current = false
 
         const handleActivity = () => {
             const now = Date.now()
@@ -173,6 +186,24 @@ export function ActivityTracker() {
             armIdleTimer()
         }
 
+        const handleOffline = () => {
+            void triggerAutoLogout()
+        }
+
+        const sendLogoutBeacon = () => {
+            if (!navigator.sendBeacon) return
+            const body = new Blob([], { type: 'application/json' })
+            navigator.sendBeacon('/api/auth/logout', body)
+        }
+
+        const handleBeforeUnload = () => {
+            sendLogoutBeacon()
+        }
+
+        const handlePageHide = () => {
+            sendLogoutBeacon()
+        }
+
         window.addEventListener('mousemove', handleActivity)
         window.addEventListener('mousedown', handleActivity)
         window.addEventListener('keydown', handleKeyDown)
@@ -181,11 +212,14 @@ export function ActivityTracker() {
         window.addEventListener('scroll', handleActivity)
         window.addEventListener('blur', handleWindowBlur)
         window.addEventListener('focus', handleWindowFocus)
+        window.addEventListener('offline', handleOffline)
+        window.addEventListener('beforeunload', handleBeforeUnload)
+        window.addEventListener('pagehide', handlePageHide)
         document.addEventListener('visibilitychange', handleVisibilityChange)
 
         hiddenRef.current = document.hidden
         if (!hiddenRef.current) {
-            updateActivity({ isIdle: false, stuckKey: false, eventType: 'session_start' })
+            void updateActivity({ isIdle: false, stuckKey: false, eventType: 'session_start' })
             armIdleTimer()
         }
 
@@ -198,10 +232,13 @@ export function ActivityTracker() {
             window.removeEventListener('scroll', handleActivity)
             window.removeEventListener('blur', handleWindowBlur)
             window.removeEventListener('focus', handleWindowFocus)
+            window.removeEventListener('offline', handleOffline)
+            window.removeEventListener('beforeunload', handleBeforeUnload)
+            window.removeEventListener('pagehide', handlePageHide)
             document.removeEventListener('visibilitychange', handleVisibilityChange)
             if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
         }
-    }, [user])
+    }, [user, logout])
 
     return null
 }

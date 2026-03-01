@@ -3,6 +3,8 @@ import prisma from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
 import { getClientIpFromHeaders } from '@/lib/request-ip'
 
+const ACTIVE_SESSION_TIMEOUT_MS = 15 * 60 * 1000
+
 function parseSessionLockToken(token?: string | null): { ip: string; sid: string; ts: number } | null {
     if (!token) return null
 
@@ -28,23 +30,23 @@ export async function GET(request: Request) {
         }
 
         const clientIp = getClientIpFromHeaders(request.headers)
-        const activeWindowStartMs = Date.now() - 24 * 60 * 60 * 1000
+        const now = Date.now()
 
         // Single session enforcement (except for Admin)
         if (session.role !== 'ADMIN') {
             const user = await prisma.user.findUnique({
                 where: { id: session.userId },
-                select: { activeSessionId: true }
+                select: { activeSessionId: true, lastActivityAt: true }
             })
 
             const activeToken = parseSessionLockToken(user?.activeSessionId)
             const isSessionIdMismatch = !user || user.activeSessionId !== session.sessionId
-            const isIpMismatch =
-                !!activeToken &&
-                activeToken.ip !== 'unknown' &&
-                clientIp !== 'unknown' &&
-                activeToken.ip !== clientIp
-            const isStaleSession = !!activeToken && activeToken.ts < activeWindowStartMs
+            const isIpMismatch = !!activeToken && !!session.ipAddress && session.ipAddress !== clientIp
+            const lastSeenAtMs = user?.lastActivityAt ? new Date(user.lastActivityAt).getTime() : 0
+            const lockTimestamp = activeToken?.ts ?? 0
+            const isStaleSession =
+                (lastSeenAtMs > 0 && now - lastSeenAtMs > ACTIVE_SESSION_TIMEOUT_MS) ||
+                (lockTimestamp > 0 && now - lockTimestamp > ACTIVE_SESSION_TIMEOUT_MS)
 
             if (isSessionIdMismatch || isIpMismatch || isStaleSession) {
                 // Another session is active, or user not found
