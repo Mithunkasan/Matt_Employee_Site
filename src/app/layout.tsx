@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/auth-context";
@@ -15,17 +15,6 @@ export const metadata: Metadata = {
   title: "Matt Engineering Solutions - Project Management System",
   description: "Internal Project & Employee Management Web Application for Matt Engineering Solutions. Est. 2014",
   keywords: ["project management", "employee management", "attendance", "reports", "Matt Engineering Solutions"],
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-    viewportFit: "cover"
-  },
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#13498a" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a1e3a" }
-  ],
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -35,6 +24,18 @@ export const metadata: Metadata = {
     icon: "/logo.png",
     apple: "/logo.png",
   }
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#13498a" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a1e3a" }
+  ]
 };
 
 export default function RootLayout({
