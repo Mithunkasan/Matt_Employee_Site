@@ -12,7 +12,7 @@ const roleRoutes: Record<string, string[]> = {
     '/api/users': ['ADMIN', 'HR', 'BA', 'PA', 'EMPLOYEE', 'MANAGER', 'TEAM_LEADER', 'TEAM_COORDINATOR', 'INTERN'],
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl
 
     // Allow public routes
