@@ -89,18 +89,21 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        // Only Admin can view leave requests.
-        if (session.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
-
         const { searchParams } = new URL(request.url)
         const status = searchParams.get('status')
         const userId = searchParams.get('userId')
         const month = searchParams.get('month') // Format: YYYY-MM
 
         const where: Record<string, any> = {}
-        if (userId) where.userId = userId
+        const isAdmin = session.role === 'ADMIN'
+
+        // Non-admin users can only view their own leave records.
+        if (isAdmin) {
+            if (userId) where.userId = userId
+        } else {
+            where.userId = session.userId
+        }
+
         if (status) where.status = status
 
         if (month) {

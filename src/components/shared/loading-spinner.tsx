@@ -17,9 +17,9 @@ export function LoadingSpinner({ size = 'md', className, text }: LoadingSpinnerP
     }
 
     const logoSizes = {
-        sm: 'h-6 w-6',
-        md: 'h-10 w-10',
-        lg: 'h-14 w-14',
+        sm: 'h-7 w-7',
+        md: 'h-11 w-11',
+        lg: 'h-16 w-16',
     }
 
     const ringThickness = {
