@@ -190,8 +190,8 @@ export default function EmployeesPage() {
     }
 
     const handleDelete = async (employee: Employee) => {
-        if (user?.role !== 'ADMIN') {
-            toast.error('Only administrators can delete users')
+        if (user?.role !== 'ADMIN' && user?.role !== 'HR') {
+            toast.error('Only administrators or HR can delete users')
             return
         }
 
@@ -493,7 +493,7 @@ export default function EmployeesPage() {
                                                                 <DropdownMenuItem onClick={() => handleToggleStatus(employee)}>
                                                                     {employee.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                                                                 </DropdownMenuItem>
-                                                                {user?.role === 'ADMIN' && (
+                                                                {(user?.role === 'ADMIN' || user?.role === 'HR') && (
                                                                     <DropdownMenuItem
                                                                         onClick={() => handleDelete(employee)}
                                                                         className="text-red-500 focus:text-red-500"

@@ -3,9 +3,11 @@
 import { useEffect, useRef } from 'react'
 import { useAuth } from '@/context/auth-context'
 
-const IDLE_TIMEOUT = 5 * 60 * 1000 // 5 minutes
+const IDLE_TIMEOUT = 10 * 60 * 1000 // 10 minutes
 const STUCK_KEY_TIMEOUT = 5 * 60 * 1000 // 5 minutes
 const REPEATED_INTERVAL_TIMEOUT = 5 * 60 * 1000 // 5 minutes
+const REPEATED_KEY_MIN_INTERVAL_MS = 80
+const REPEATED_KEY_MAX_INTERVAL_MS = 2500
 const UPDATE_THROTTLE_MS = 60 * 1000 // 1 minute
 
 export function ActivityTracker() {
@@ -20,13 +22,11 @@ export function ActivityTracker() {
     const repeatedKeyTrackerRef = useRef<{
         key: string
         lastEventAt: number
-        intervalMs: number
         patternStartAt: number
         triggered: boolean
     }>({
         key: '',
         lastEventAt: 0,
-        intervalMs: 0,
         patternStartAt: 0,
         triggered: false,
     })
@@ -61,15 +61,20 @@ export function ActivityTracker() {
         await logout()
     }
 
-    const triggerAutoCheckout = async (reason: 'idle' | 'suspicious') => {
-        if (reason === 'suspicious') {
+    const triggerAutoCheckout = async (reason: 'idle' | 'long_press' | 'repeated_key') => {
+        if (reason !== 'idle') {
             if (suspiciousTriggeredRef.current) return
             suspiciousTriggeredRef.current = true
         }
         await updateActivity({
             isIdle: reason === 'idle',
-            stuckKey: reason === 'suspicious',
-            eventType: reason === 'idle' ? 'idle_timeout' : 'suspicious_pattern',
+            stuckKey: reason !== 'idle',
+            eventType:
+                reason === 'idle'
+                    ? 'idle_timeout'
+                    : reason === 'long_press'
+                        ? 'long_press_timeout'
+                        : 'repeated_key_pattern',
         })
 
         if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
@@ -103,30 +108,19 @@ export function ActivityTracker() {
         if (tracker.key !== key) {
             tracker.key = key
             tracker.lastEventAt = now
-            tracker.intervalMs = 0
-            tracker.patternStartAt = 0
+            tracker.patternStartAt = now
             tracker.triggered = false
             return
         }
 
         const currentInterval = now - tracker.lastEventAt
-        const variance = 150
-
-        if (tracker.intervalMs === 0) {
-            tracker.intervalMs = currentInterval
-            tracker.patternStartAt = tracker.lastEventAt
-            tracker.lastEventAt = now
-            return
-        }
-
-        if (Math.abs(currentInterval - tracker.intervalMs) <= variance) {
+        if (currentInterval >= REPEATED_KEY_MIN_INTERVAL_MS && currentInterval <= REPEATED_KEY_MAX_INTERVAL_MS) {
             if (!tracker.triggered && now - tracker.patternStartAt >= REPEATED_INTERVAL_TIMEOUT) {
                 tracker.triggered = true
-                triggerAutoCheckout('suspicious')
+                void triggerAutoCheckout('repeated_key')
             }
         } else {
-            tracker.intervalMs = currentInterval
-            tracker.patternStartAt = tracker.lastEventAt
+            tracker.patternStartAt = now
             tracker.triggered = false
         }
 
@@ -144,7 +138,7 @@ export function ActivityTracker() {
         } else {
             const duration = now - keyPressRef.current[e.key]
             if (duration > STUCK_KEY_TIMEOUT) {
-                void triggerAutoCheckout('suspicious')
+                void triggerAutoCheckout('long_press')
             }
         }
     }

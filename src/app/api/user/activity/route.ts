@@ -151,15 +151,29 @@ export async function POST(req: Request) {
             const dedupeKey = `[user:${session.userId}][${eventType}]`
 
             if (stuckKey) {
-                await sendAdminNotification(
-                    'Suspicious Activity Auto Checkout',
-                    `${dedupeKey} Employee ${session.name} (${session.role}) showed suspicious keyboard activity for 5 minutes. Automatic checkout has been applied.`,
-                    dedupeKey
-                )
+                if (eventType === 'long_press_timeout') {
+                    await sendAdminNotification(
+                        'Long Press Auto Checkout',
+                        `${dedupeKey} Employee ${session.name} (${session.role}) performed a continuous long press action on a keyboard key for 5 minutes. Automatic checkout has been applied.`,
+                        dedupeKey
+                    )
+                } else if (eventType === 'repeated_key_pattern') {
+                    await sendAdminNotification(
+                        'Repeated Key Press Auto Checkout',
+                        `${dedupeKey} Employee ${session.name} (${session.role}) repeatedly pressed a single keyboard key at short intervals for 5 minutes. Automatic checkout has been applied.`,
+                        dedupeKey
+                    )
+                } else {
+                    await sendAdminNotification(
+                        'Suspicious Activity Auto Checkout',
+                        `${dedupeKey} Employee ${session.name} (${session.role}) showed suspicious keyboard activity for 5 minutes. Automatic checkout has been applied.`,
+                        dedupeKey
+                    )
+                }
             } else if (isIdle) {
                 await sendAdminNotification(
                     'Idle Auto Checkout',
-                    `${dedupeKey} Employee ${session.name} (${session.role}) was inactive for 5 minutes (no keyboard/mouse input). Automatic checkout has been applied.`,
+                    `${dedupeKey} Employee ${session.name} (${session.role}) was inactive for 10 minutes (no keyboard/mouse input). Automatic checkout has been applied.`,
                     dedupeKey
                 )
             }
