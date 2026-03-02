@@ -172,8 +172,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        // Only Admin can delete users
-        if (session.role !== 'ADMIN') {
+        // Only Admin and HR can delete users
+        if (session.role !== 'ADMIN' && session.role !== 'HR') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 

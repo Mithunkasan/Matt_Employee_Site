@@ -78,15 +78,6 @@ function getISTDateKey(dateValue: Date | string): string {
     }).format(new Date(dateValue))
 }
 
-function calculateHoursBetween(checkIn?: string | null, checkOut?: string | null): number | null {
-    if (!checkIn || !checkOut) return null
-
-    const diffInMs = new Date(checkOut).getTime() - new Date(checkIn).getTime()
-    if (diffInMs <= 0) return null
-
-    return Math.round((diffInMs / (1000 * 60 * 60)) * 100) / 100
-}
-
 function dedupeByISTDate(records: Attendance[]): Attendance[] {
     const seen = new Set<string>()
     const unique: Attendance[] = []
@@ -141,7 +132,7 @@ export default function AttendancePage() {
             a.status,
             formatTimeInIST(a.checkIn),
             formatTimeInIST(a.checkOut),
-            (calculateHoursBetween(a.checkIn, a.checkOut) ?? a.workingHours ?? 0).toFixed(2),
+            (a.workingHours ?? 0).toFixed(2),
             a.notes?.replace(/,/g, ';') || '-'
         ])
 
@@ -463,10 +454,7 @@ export default function AttendancePage() {
                                 </TableRow>
                             ) : (
                                 attendances.map((attendance) => {
-                                    const calculatedHours = calculateHoursBetween(attendance.checkIn, attendance.checkOut)
-                                    const displayHours = canViewAll
-                                        ? (calculatedHours ?? attendance.workingHours ?? null)
-                                        : (attendance.workingHours ?? null)
+                                    const displayHours = attendance.workingHours ?? null
 
                                     return (
                                     <TableRow key={attendance.id} className="border-slate-100 dark:border-slate-700/30">
