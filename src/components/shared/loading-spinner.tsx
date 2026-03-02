@@ -9,8 +9,6 @@ interface LoadingSpinnerProps {
     text?: string
 }
 
-const SPOKES = Array.from({ length: 12 }, (_, index) => index)
-
 export function LoadingSpinner({ size = 'md', className, text }: LoadingSpinnerProps) {
     const sizeClasses = {
         sm: 'h-12 w-12',
@@ -24,26 +22,22 @@ export function LoadingSpinner({ size = 'md', className, text }: LoadingSpinnerP
         lg: 'h-14 w-14',
     }
 
+    const ringThickness = {
+        sm: 'border-[2px]',
+        md: 'border-[3px]',
+        lg: 'border-[4px]',
+    }
+
     return (
         <div className={cn('flex flex-col items-center justify-center gap-4', className)}>
             <div className={cn('relative flex items-center justify-center', sizeClasses[size])}>
                 <div
-                    className="absolute inset-0 animate-spin"
+                    className={cn(
+                        'absolute inset-0 rounded-full animate-spin border-slate-200 dark:border-slate-700 border-t-slate-500 dark:border-t-slate-200',
+                        ringThickness[size]
+                    )}
                     style={{ animationDuration: '0.9s', animationTimingFunction: 'linear' }}
-                >
-                    {SPOKES.map((spoke) => (
-                        <span
-                            key={spoke}
-                            className="absolute inset-0"
-                            style={{ transform: `rotate(${spoke * 30}deg)` }}
-                        >
-                            <span
-                                className="absolute left-1/2 top-[7%] h-[20%] w-[2px] -translate-x-1/2 rounded-full bg-slate-500 dark:bg-slate-300"
-                                style={{ opacity: (spoke + 1) / SPOKES.length }}
-                            />
-                        </span>
-                    ))}
-                </div>
+                />
 
                 <div className="absolute inset-[24%] rounded-full bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px]" />
                 <div className={cn('relative rounded-full overflow-hidden bg-white shadow-sm flex items-center justify-center p-1', logoSizes[size])}>
@@ -54,7 +48,7 @@ export function LoadingSpinner({ size = 'md', className, text }: LoadingSpinnerP
                             fill
                             className="object-contain"
                             priority={size === 'lg'}
-                            sizes="64px"
+                            sizes="90px"
                         />
                     </div>
                 </div>
