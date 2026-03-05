@@ -40,7 +40,7 @@ export default function WfhRequestsPage() {
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
 
-    const canManage = user?.role === 'ADMIN' || user?.role === 'HR'
+    const canManage = user?.role === 'ADMIN'
 
     useEffect(() => {
         fetchRequests()

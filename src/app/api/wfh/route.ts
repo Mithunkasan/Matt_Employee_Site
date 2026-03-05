@@ -44,12 +44,16 @@ export async function GET(request: NextRequest) {
 
         const where: Record<string, unknown> = {}
 
-        // Visibility restriction: Only respective person, Admin, and HR can see details
-        const isAdminOrHR = session.role === 'ADMIN' || session.role === 'HR'
-        if (!isAdminOrHR) {
+        // Visibility restriction: Only respective person can see own requests, only Admin can see all
+        if (session.role === 'HR') {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
+
+        const isAdmin = session.role === 'ADMIN'
+        if (!isAdmin) {
             where.userId = session.userId
         } else {
-            // Admin/HR can see all (or filtered)
+            // Admin can see all (or filtered)
             if (userId) where.userId = userId
             if (status) where.status = status
         }

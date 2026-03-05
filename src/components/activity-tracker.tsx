@@ -7,15 +7,14 @@ const IDLE_TIMEOUT = 10 * 60 * 1000 // 10 minutes
 const STUCK_KEY_TIMEOUT = 5 * 60 * 1000 // 5 minutes
 const REPEATED_INTERVAL_TIMEOUT = 5 * 60 * 1000 // 5 minutes
 const REPEATED_KEY_MIN_INTERVAL_MS = 80
-const REPEATED_KEY_MAX_INTERVAL_MS = 2500
+const REPEATED_KEY_MAX_INTERVAL_MS = 400 // very short interval spam
 const UPDATE_THROTTLE_MS = 60 * 1000 // 1 minute
 
 export function ActivityTracker() {
-    const { user, logout } = useAuth()
+    const { user } = useAuth()
     const idleTimerRef = useRef<NodeJS.Timeout | null>(null)
     const hiddenRef = useRef<boolean>(false)
     const suspiciousTriggeredRef = useRef<boolean>(false)
-    const logoutTriggeredRef = useRef<boolean>(false)
     const keyPressRef = useRef<{ [key: string]: number }>({})
 
     // Repeated fixed-interval key press detection
@@ -53,12 +52,6 @@ export function ActivityTracker() {
         } catch {
             return { success: false, checkedOut: false }
         }
-    }
-
-    const triggerLogout = async () => {
-        if (logoutTriggeredRef.current) return
-        logoutTriggeredRef.current = true
-        await logout()
     }
 
     const triggerAutoCheckout = async (reason: 'idle' | 'long_press' | 'repeated_key') => {
@@ -149,7 +142,6 @@ export function ActivityTracker() {
 
     useEffect(() => {
         if (!user) return
-        logoutTriggeredRef.current = false
 
         const handleActivity = () => {
             const now = Date.now()
@@ -179,24 +171,6 @@ export function ActivityTracker() {
             armIdleTimer()
         }
 
-        const handleOffline = () => {
-            void triggerLogout()
-        }
-
-        const sendLogoutBeacon = () => {
-            if (!navigator.sendBeacon) return
-            const body = new Blob([], { type: 'application/json' })
-            navigator.sendBeacon('/api/auth/logout', body)
-        }
-
-        const handleBeforeUnload = () => {
-            sendLogoutBeacon()
-        }
-
-        const handlePageHide = () => {
-            sendLogoutBeacon()
-        }
-
         window.addEventListener('mousemove', handleActivity)
         window.addEventListener('mousedown', handleActivity)
         window.addEventListener('keydown', handleKeyDown)
@@ -205,9 +179,6 @@ export function ActivityTracker() {
         window.addEventListener('scroll', handleActivity)
         window.addEventListener('blur', handleWindowBlur)
         window.addEventListener('focus', handleWindowFocus)
-        window.addEventListener('offline', handleOffline)
-        window.addEventListener('beforeunload', handleBeforeUnload)
-        window.addEventListener('pagehide', handlePageHide)
         document.addEventListener('visibilitychange', handleVisibilityChange)
 
         hiddenRef.current = document.hidden
@@ -225,13 +196,10 @@ export function ActivityTracker() {
             window.removeEventListener('scroll', handleActivity)
             window.removeEventListener('blur', handleWindowBlur)
             window.removeEventListener('focus', handleWindowFocus)
-            window.removeEventListener('offline', handleOffline)
-            window.removeEventListener('beforeunload', handleBeforeUnload)
-            window.removeEventListener('pagehide', handlePageHide)
             document.removeEventListener('visibilitychange', handleVisibilityChange)
             if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
         }
-    }, [user, logout])
+    }, [user])
 
     return null
 }

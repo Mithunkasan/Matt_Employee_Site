@@ -3,7 +3,10 @@ import prisma from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
 import { getClientIpFromHeaders } from '@/lib/request-ip'
 
-const ACTIVE_SESSION_TIMEOUT_MS = 15 * 60 * 1000
+const ACTIVE_SESSION_TIMEOUT_MS = 20 * 60 * 1000
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
+const OFFICE_END_HOUR_IST = 17
+const OFFICE_END_MINUTE_IST = 30
 
 function parseSessionLockToken(token?: string | null): { ip: string; sid: string; ts: number } | null {
     if (!token) return null
@@ -16,6 +19,18 @@ function parseSessionLockToken(token?: string | null): { ip: string; sid: string
         sid: match[2],
         ts: Number(match[3]),
     }
+}
+
+function isAfterOfficeHours(timestamp: number): boolean {
+    const istNow = new Date(timestamp + IST_OFFSET_MS)
+    const officeEnd = new Date(istNow)
+    officeEnd.setUTCHours(OFFICE_END_HOUR_IST, OFFICE_END_MINUTE_IST, 0, 0)
+    return istNow.getTime() >= officeEnd.getTime()
+}
+
+function getIstDateKey(timestamp: number): string {
+    const istDate = new Date(timestamp + IST_OFFSET_MS)
+    return istDate.toISOString().split('T')[0]
 }
 
 export async function GET(request: Request) {
@@ -31,6 +46,38 @@ export async function GET(request: Request) {
 
         const clientIp = getClientIpFromHeaders(request.headers)
         const now = Date.now()
+
+        if (session.role !== 'ADMIN' && isAfterOfficeHours(now)) {
+            const requestDate = new Date(`${getIstDateKey(now)}T00:00:00Z`)
+            const approvedRequest = await prisma.overtimeLoginRequest.findUnique({
+                where: {
+                    userId_requestDate: {
+                        userId: session.userId,
+                        requestDate,
+                    },
+                },
+                select: { status: true },
+            })
+
+            if (approvedRequest?.status !== 'APPROVED') {
+                await prisma.user.updateMany({
+                    where: {
+                        id: session.userId,
+                        activeSessionId: session.sessionId,
+                    },
+                    data: {
+                        activeSessionId: null,
+                    },
+                })
+
+                const response = NextResponse.json(
+                    { error: 'Logged out after office hours. Admin approval is required for overtime login.' },
+                    { status: 401 }
+                )
+                response.cookies.delete('session')
+                return response
+            }
+        }
 
         // Single session enforcement (except for Admin)
         if (session.role !== 'ADMIN') {

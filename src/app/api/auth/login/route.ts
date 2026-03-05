@@ -5,7 +5,11 @@ import { createSession } from '@/lib/auth'
 import { loginSchema } from '@/lib/validations'
 import { getClientIpFromHeaders } from '@/lib/request-ip'
 
-const ACTIVE_SESSION_TIMEOUT_MS = 15 * 60 * 1000
+const ACTIVE_SESSION_TIMEOUT_MS = 20 * 60 * 1000
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
+const OFFICE_START_HOUR_IST = 9
+const OFFICE_END_HOUR_IST = 17
+const OFFICE_END_MINUTE_IST = 30
 
 function buildSessionLockToken(ip: string, sessionId: string, timestamp: number): string {
     return `ip:${ip}|sid:${sessionId}|ts:${timestamp}`
@@ -25,8 +29,21 @@ function parseSessionLockToken(token?: string | null): { ip: string; sid: string
 }
 
 function getIstDateKey(timestamp: number): string {
-    const istDate = new Date(timestamp + (5.5 * 60 * 60 * 1000))
+    const istDate = new Date(timestamp + IST_OFFSET_MS)
     return istDate.toISOString().split('T')[0]
+}
+
+function getOfficeWindowStatus(timestamp: number) {
+    const istNow = new Date(timestamp + IST_OFFSET_MS)
+    const officeStart = new Date(istNow)
+    officeStart.setUTCHours(OFFICE_START_HOUR_IST, 0, 0, 0)
+    const officeEnd = new Date(istNow)
+    officeEnd.setUTCHours(OFFICE_END_HOUR_IST, OFFICE_END_MINUTE_IST, 0, 0)
+
+    return {
+        isBeforeOfficeHours: istNow.getTime() < officeStart.getTime(),
+        isAfterOfficeHours: istNow.getTime() >= officeEnd.getTime(),
+    }
 }
 
 export async function POST(request: NextRequest) {
@@ -76,6 +93,84 @@ export async function POST(request: NextRequest) {
         }
 
         const shouldEnforceSingleLogin = user.role !== 'ADMIN'
+        const officeWindowStatus = getOfficeWindowStatus(now)
+
+        if (user.role !== 'ADMIN' && officeWindowStatus.isBeforeOfficeHours) {
+            return NextResponse.json(
+                { error: 'Login is allowed only during office hours (9:00 AM to 5:30 PM IST).' },
+                { status: 403 }
+            )
+        }
+
+        if (user.role !== 'ADMIN' && officeWindowStatus.isAfterOfficeHours) {
+            const requestDate = new Date(`${getIstDateKey(now)}T00:00:00Z`)
+            let overtimeRequest = await prisma.overtimeLoginRequest.findUnique({
+                where: {
+                    userId_requestDate: {
+                        userId: user.id,
+                        requestDate,
+                    },
+                },
+            })
+
+            if (!overtimeRequest) {
+                overtimeRequest = await prisma.overtimeLoginRequest.create({
+                    data: {
+                        userId: user.id,
+                        requestDate,
+                        reason: 'Auto-generated from after-hours login attempt',
+                    },
+                })
+            } else if (overtimeRequest.status === 'REJECTED') {
+                overtimeRequest = await prisma.overtimeLoginRequest.update({
+                    where: { id: overtimeRequest.id },
+                    data: {
+                        status: 'PENDING',
+                        reviewedAt: null,
+                        reviewedById: null,
+                    },
+                })
+            }
+
+            if (overtimeRequest.status !== 'APPROVED') {
+                const admins = await prisma.user.findMany({
+                    where: {
+                        role: 'ADMIN',
+                        status: 'ACTIVE',
+                    },
+                    select: { id: true },
+                })
+                const dedupeKey = `[overtime-login][request:${overtimeRequest.id}]`
+
+                for (const admin of admins) {
+                    const existingNotification = await prisma.notification.findFirst({
+                        where: {
+                            userId: admin.id,
+                            title: 'Overtime Login Request',
+                            message: { contains: dedupeKey },
+                        },
+                    })
+
+                    if (existingNotification) continue
+
+                    await prisma.notification.create({
+                        data: {
+                            userId: admin.id,
+                            title: 'Overtime Login Request',
+                            message: `${dedupeKey} ${user.name} (${user.email}) requested login access after 5:30 PM.`,
+                        },
+                    })
+                }
+
+                return NextResponse.json(
+                    {
+                        error: 'Office hours are over. Overtime request has been sent to admin. You can log in after approval.',
+                    },
+                    { status: 403 }
+                )
+            }
+        }
+
         const activeToken = parseSessionLockToken(user.activeSessionId)
         const lastSeenAtMs = user.lastActivityAt ? new Date(user.lastActivityAt).getTime() : null
         const lockTimestamp = activeToken?.ts ?? 0
@@ -129,13 +224,13 @@ export async function POST(request: NextRequest) {
         // Record attendance
         const loginTime = new Date()
         // Get current day in IST
-        const istDate = new Date(loginTime.getTime() + (5.5 * 60 * 60 * 1000))
+        const istDate = new Date(loginTime.getTime() + IST_OFFSET_MS)
         const todayStr = istDate.toISOString().split('T')[0]
         const today = new Date(`${todayStr}T00:00:00Z`)
 
         // Check if it's currently overtime (after 5:30 PM IST)
         const thresholdIST = new Date(istDate)
-        thresholdIST.setUTCHours(17, 30, 0, 0)
+        thresholdIST.setUTCHours(OFFICE_END_HOUR_IST, OFFICE_END_MINUTE_IST, 0, 0)
         const isOvertime = istDate.getTime() > thresholdIST.getTime()
         const isSundayLogin = istDate.getUTCDay() === 0
 

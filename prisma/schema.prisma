@@ -35,10 +35,30 @@ model User {
   subordinates     User[]                @relation("ManagerSubordinates")
   wfhRequests      WorkFromHomeRequest[]
   reportReplies    DailyReport[]         @relation("ReportReplies")
+  overtimeLoginRequests OvertimeLoginRequest[]
+  overtimeApprovals     OvertimeLoginRequest[] @relation("OvertimeApprovalBy")
 
   @@index([role])
   @@index([lastActivityAt])
   @@map("users")
+}
+
+model OvertimeLoginRequest {
+  id          String      @id @default(cuid())
+  userId      String
+  requestDate DateTime    @db.Date
+  status      LeaveStatus @default(PENDING)
+  reason      String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  reviewedAt  DateTime?
+  reviewedById String?
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy  User?       @relation("OvertimeApprovalBy", fields: [reviewedById], references: [id])
+
+  @@unique([userId, requestDate], name: "userId_requestDate")
+  @@index([requestDate, status])
+  @@map("overtime_login_requests")
 }
 
 model Project {
