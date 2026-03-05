@@ -17,6 +17,7 @@ import {
     Calendar,
     Building2,
     LayoutGrid,
+    Clock3,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -74,6 +75,12 @@ const navItems: NavItem[] = [
         title: 'WFH Requests',
         href: '/wfh',
         icon: <Building2 className="h-5 w-5" />,
+        roles: ['ADMIN', 'BA', 'PA', 'MANAGER', 'TEAM_LEADER', 'TEAM_COORDINATOR', 'EMPLOYEE', 'INTERN'],
+    },
+    {
+        title: 'Overtime Requests',
+        href: '/overtime-requests',
+        icon: <Clock3 className="h-5 w-5" />,
         roles: ['ADMIN', 'HR', 'BA', 'PA', 'MANAGER', 'TEAM_LEADER', 'TEAM_COORDINATOR', 'EMPLOYEE', 'INTERN'],
     },
     {

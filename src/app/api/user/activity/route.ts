@@ -150,7 +150,7 @@ export async function POST(req: Request) {
             const checkedOut = await autoCheckoutIfActive(session.userId)
             const dedupeKey = `[user:${session.userId}][${eventType}]`
 
-            if (stuckKey) {
+            if (checkedOut && stuckKey) {
                 if (eventType === 'long_press_timeout') {
                     await sendAdminNotification(
                         'Long Press Auto Checkout',
@@ -170,7 +170,7 @@ export async function POST(req: Request) {
                         dedupeKey
                     )
                 }
-            } else if (isIdle) {
+            } else if (checkedOut && isIdle) {
                 await sendAdminNotification(
                     'Idle Auto Checkout',
                     `${dedupeKey} Employee ${session.name} (${session.role}) was inactive for 10 minutes (no keyboard/mouse input). Automatic checkout has been applied.`,

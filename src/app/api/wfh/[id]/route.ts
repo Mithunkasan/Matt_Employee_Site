@@ -11,8 +11,8 @@ export async function PATCH(
     try {
         const { id: requestId } = await params
         const session = await getSession()
-        // Only Admin or HR can approve/decline WFH
-        if (!session || (session.role !== 'ADMIN' && session.role !== 'HR')) {
+        // Only Admin can approve/decline WFH
+        if (!session || session.role !== 'ADMIN') {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
