@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
+import { calculateOvertimeHours, getISTStartOfDayUTC, roundHours } from '@/lib/time-utils'
 
 export async function GET() {
     try {
@@ -15,9 +16,7 @@ export async function GET() {
         }
 
         const now = new Date()
-        const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
-        const today = new Date(istNow)
-        today.setUTCHours(0, 0, 0, 0)
+        const today = getISTStartOfDayUTC(now)
 
         // Get all today's attendance with user information and sessions
         const attendances = await prisma.attendance.findMany({
@@ -59,25 +58,12 @@ export async function GET() {
                 totalHours += hours
                 if (!session.checkOut) isActive = true
 
-                // Calculate current overtime if session is still active (5:30 PM IST threshold)
-                // The threshold should be based on the check-in date of the session
-                const istCheckInTime = new Date(checkInTime.getTime() + (5.5 * 60 * 60 * 1000))
-                const thresholdIST = new Date(istCheckInTime)
-                thresholdIST.setUTCHours(17, 30, 0, 0) // 5:30 PM IST
-                const thresholdUTC = new Date(thresholdIST.getTime() - (5.5 * 60 * 60 * 1000))
-
-                if (session.isOvertime) {
-                    totalOvertimeHours += hours
-                } else if (checkOutTime.getTime() > thresholdUTC.getTime()) {
-                    const otStart = checkInTime.getTime() > thresholdUTC.getTime() ? checkInTime.getTime() : thresholdUTC.getTime()
-                    const otMs = checkOutTime.getTime() - otStart
-                    totalOvertimeHours += Math.max(0, otMs / (1000 * 60 * 60))
-                }
+                totalOvertimeHours += calculateOvertimeHours(checkInTime, checkOutTime)
             })
 
             // Round to 2 decimal places
-            totalHours = Math.round(totalHours * 100) / 100
-            totalOvertimeHours = Math.round(totalOvertimeHours * 100) / 100
+            totalHours = roundHours(totalHours)
+            totalOvertimeHours = roundHours(totalOvertimeHours)
 
             // Get first session's check-in time and last session's check-out time
             const firstCheckIn = attendance.sessions.length > 0
@@ -116,8 +102,8 @@ export async function GET() {
             summary: {
                 totalEmployeesPresent: attendances.length,
                 activeEmployees: employeeWorkingHours.filter((e) => e.isActive).length,
-                totalHoursToday: Math.round(totalHoursToday * 100) / 100,
-                totalOvertimeToday: Math.round(totalOvertimeToday * 100) / 100,
+                totalHoursToday: roundHours(totalHoursToday),
+                totalOvertimeToday: roundHours(totalOvertimeToday),
             },
         })
     } catch (error) {

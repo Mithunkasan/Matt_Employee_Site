@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
 import { getClientIpFromHeaders } from '@/lib/request-ip'
+import { calculateOvertimeHours, getISTStartOfDayUTC, roundHours } from '@/lib/time-utils'
 
 const ACTIVE_SESSION_TIMEOUT_MS = 20 * 60 * 1000
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
@@ -28,9 +29,76 @@ function isAfterOfficeHours(timestamp: number): boolean {
     return istNow.getTime() >= officeEnd.getTime()
 }
 
+function getISTOfficeEndUTC(timestamp: number): Date {
+    const istNow = new Date(timestamp + IST_OFFSET_MS)
+    const y = istNow.getUTCFullYear()
+    const m = istNow.getUTCMonth()
+    const d = istNow.getUTCDate()
+    // 5:30 PM IST = 12:00 PM UTC
+    return new Date(Date.UTC(y, m, d, 12, 0, 0, 0))
+}
+
 function getIstDateKey(timestamp: number): string {
     const istDate = new Date(timestamp + IST_OFFSET_MS)
     return istDate.toISOString().split('T')[0]
+}
+
+async function autoCheckoutAtOfficeEnd(userId: string, officeEndUTC: Date) {
+    const today = getISTStartOfDayUTC(officeEndUTC)
+    const attendance = await prisma.attendance.findUnique({
+        where: {
+            userId_date: {
+                userId,
+                date: today,
+            },
+        },
+        include: {
+            sessions: {
+                orderBy: {
+                    checkIn: 'asc',
+                },
+            },
+        },
+    })
+
+    if (!attendance) return
+
+    const activeSession = attendance.sessions.find((s) => !s.checkOut)
+    if (!activeSession) return
+
+    const checkInTime = new Date(activeSession.checkIn)
+    const effectiveCheckout =
+        checkInTime.getTime() < officeEndUTC.getTime() ? officeEndUTC : checkInTime
+
+    const sessionHours = (effectiveCheckout.getTime() - checkInTime.getTime()) / (1000 * 60 * 60)
+    const roundedSessionHours = Math.max(0, roundHours(sessionHours))
+    const sessionOvertimeHours = calculateOvertimeHours(checkInTime, effectiveCheckout)
+
+    await prisma.attendanceSession.update({
+        where: { id: activeSession.id },
+        data: {
+            checkOut: effectiveCheckout,
+            hoursWorked: roundedSessionHours,
+            overtimeHours: sessionOvertimeHours,
+            isOvertime: sessionOvertimeHours > 0,
+        },
+    })
+
+    const allSessions = await prisma.attendanceSession.findMany({
+        where: { attendanceId: attendance.id },
+    })
+
+    const totalHours = allSessions.reduce((sum, s) => sum + (s.hoursWorked || 0), 0)
+    const totalOvertimeHours = allSessions.reduce((sum, s) => sum + (s.overtimeHours || 0), 0)
+
+    await prisma.attendance.update({
+        where: { id: attendance.id },
+        data: {
+            totalHours: roundHours(totalHours),
+            overtimeHours: roundHours(totalOvertimeHours),
+            isOvertime: totalOvertimeHours > 0,
+        },
+    })
 }
 
 export async function GET(request: Request) {
@@ -60,6 +128,9 @@ export async function GET(request: Request) {
             })
 
             if (approvedRequest?.status !== 'APPROVED') {
+                const officeEndUTC = getISTOfficeEndUTC(now)
+                await autoCheckoutAtOfficeEnd(session.userId, officeEndUTC)
+
                 await prisma.user.updateMany({
                     where: {
                         id: session.userId,

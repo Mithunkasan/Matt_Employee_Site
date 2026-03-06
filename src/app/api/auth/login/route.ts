@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { createSession } from '@/lib/auth'
 import { loginSchema } from '@/lib/validations'
 import { getClientIpFromHeaders } from '@/lib/request-ip'
+import { calculateOvertimeHours, getISTOvertimeThresholdUTC, roundHours } from '@/lib/time-utils'
 
 const ACTIVE_SESSION_TIMEOUT_MS = 20 * 60 * 1000
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
@@ -228,10 +229,9 @@ export async function POST(request: NextRequest) {
         const todayStr = istDate.toISOString().split('T')[0]
         const today = new Date(`${todayStr}T00:00:00Z`)
 
-        // Check if it's currently overtime (after 5:30 PM IST)
-        const thresholdIST = new Date(istDate)
-        thresholdIST.setUTCHours(OFFICE_END_HOUR_IST, OFFICE_END_MINUTE_IST, 0, 0)
-        const isOvertime = istDate.getTime() > thresholdIST.getTime()
+        // Check if it's currently overtime (strictly after 5:30 PM IST)
+        const overtimeThresholdUTC = getISTOvertimeThresholdUTC(loginTime)
+        const isOvertime = loginTime.getTime() > overtimeThresholdUTC.getTime()
         const isSundayLogin = istDate.getUTCDay() === 0
 
         try {
@@ -288,26 +288,16 @@ export async function POST(request: NextRequest) {
             for (const staleSession of staleSessions) {
                 const checkInTime = new Date(staleSession.checkIn)
 
-                // Auto-checkout at 6:00 PM IST of the attendance date.
+                // Auto-checkout at 5:30 PM IST of the attendance date.
                 const y = staleSession.attendance.date.getUTCFullYear()
                 const m = staleSession.attendance.date.getUTCMonth()
                 const d = staleSession.attendance.date.getUTCDate()
-                const autoCheckoutAt = new Date(Date.UTC(y, m, d, 12, 30, 0, 0)) // 18:00 IST
+                const autoCheckoutAt = new Date(Date.UTC(y, m, d, 12, 0, 0, 0)) // 17:30 IST
                 const checkOutTime = autoCheckoutAt.getTime() > checkInTime.getTime() ? autoCheckoutAt : loginTime
 
                 const sessionHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60)
-                const roundedSessionHours = Math.max(0, Math.round(sessionHours * 100) / 100)
-
-                // Overtime threshold: 5:30 PM IST (12:00 UTC) on the attendance date
-                const thresholdUTC = new Date(Date.UTC(y, m, d, 12, 0, 0, 0))
-                let sessionOvertimeHours = 0
-                if (staleSession.isOvertime) {
-                    sessionOvertimeHours = roundedSessionHours
-                } else if (checkOutTime.getTime() > thresholdUTC.getTime()) {
-                    const otStart = checkInTime.getTime() > thresholdUTC.getTime() ? checkInTime.getTime() : thresholdUTC.getTime()
-                    const otMs = checkOutTime.getTime() - otStart
-                    sessionOvertimeHours = Math.max(0, Math.round((otMs / (1000 * 60 * 60)) * 100) / 100)
-                }
+                const roundedSessionHours = Math.max(0, roundHours(sessionHours))
+                const sessionOvertimeHours = calculateOvertimeHours(checkInTime, checkOutTime)
 
                 await prisma.attendanceSession.update({
                     where: { id: staleSession.id },
@@ -315,7 +305,7 @@ export async function POST(request: NextRequest) {
                         checkOut: checkOutTime,
                         hoursWorked: roundedSessionHours,
                         overtimeHours: sessionOvertimeHours,
-                        isOvertime: staleSession.isOvertime || sessionOvertimeHours > 0,
+                        isOvertime: sessionOvertimeHours > 0,
                     },
                 })
 
@@ -329,8 +319,8 @@ export async function POST(request: NextRequest) {
                 await prisma.attendance.update({
                     where: { id: staleSession.attendanceId },
                     data: {
-                        totalHours: Math.round(totalHours * 100) / 100,
-                        overtimeHours: Math.round(totalOvertimeHours * 100) / 100,
+                        totalHours: roundHours(totalHours),
+                        overtimeHours: roundHours(totalOvertimeHours),
                         isOvertime: totalOvertimeHours > 0,
                     },
                 })

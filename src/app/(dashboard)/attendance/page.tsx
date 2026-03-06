@@ -55,6 +55,11 @@ interface Attendance {
     }
 }
 
+interface AttendanceSummary {
+    presentToday: number
+    absentToday: number
+}
+
 const IST_TIME_ZONE = 'Asia/Kolkata'
 
 function formatTimeInIST(dateValue?: string | null): string {
@@ -100,6 +105,7 @@ export default function AttendancePage() {
     const [markDialogOpen, setMarkDialogOpen] = useState(false)
     const [saving, setSaving] = useState(false)
     const [todayAttendance, setTodayAttendance] = useState<Attendance | null>(null)
+    const [attendanceSummary, setAttendanceSummary] = useState<AttendanceSummary | null>(null)
     const [selectedMonth, setSelectedMonth] = useState(() => {
         const now = new Date()
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -173,6 +179,7 @@ export default function AttendancePage() {
                     : dedupeByISTDate(fetchedAttendances)
 
                 setAttendances(normalizedAttendances)
+                setAttendanceSummary(data.summary || null)
 
                 // Check if today's attendance exists
                 const today = getISTDateKey(new Date())
@@ -260,9 +267,11 @@ export default function AttendancePage() {
 
     // Calculate stats
     const myAttendances = attendances.filter((a) => a.user.id === user?.userId)
-    const presentDays = myAttendances.filter((a) => a.status === 'PRESENT').length
-    const absentDays = myAttendances.filter((a) => a.status === 'ABSENT').length
+    const myPresentDays = myAttendances.filter((a) => a.status === 'PRESENT').length
+    const myAbsentDays = myAttendances.filter((a) => a.status === 'ABSENT').length
     const leaveDays = myAttendances.filter((a) => a.status === 'LEAVE').length
+    const presentDays = canViewAll ? (attendanceSummary?.presentToday || 0) : myPresentDays
+    const absentDays = canViewAll ? (attendanceSummary?.absentToday || 0) : myAbsentDays
     const isActiveSession = !!todayAttendance && todayAttendance.status === 'PRESENT' && !todayAttendance.checkOut
 
     if (loading) {
@@ -359,7 +368,7 @@ export default function AttendancePage() {
                 </Card>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className={`grid grid-cols-2 ${canViewAll ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-4 mb-6`}>
                     <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                         <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center">
@@ -382,17 +391,19 @@ export default function AttendancePage() {
                             </div>
                         </div>
                     </Card>
-                    <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                                <Calendar className="h-5 w-5 text-orange-500" />
+                    {!canViewAll && (
+                        <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                                    <Calendar className="h-5 w-5 text-orange-500" />
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{leaveDays}</p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Leave</p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-2xl font-bold text-slate-900 dark:text-white">{leaveDays}</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">Leave</p>
-                            </div>
-                        </div>
-                    </Card>
+                        </Card>
+                    )}
                     <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                         <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
