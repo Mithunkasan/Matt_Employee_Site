@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
+import { calculateOvertimeHours, getISTStartOfDayUTC, roundHours } from '@/lib/time-utils'
 
 const ACTIVITY_NOTIFICATION_WINDOW_MS = 5 * 60 * 1000
 
 function getISTStartOfTodayUTC(): Date {
-    const now = new Date()
-    const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
-    const today = new Date(istNow)
-    today.setUTCHours(0, 0, 0, 0)
-    return today
+    return getISTStartOfDayUTC()
 }
 
 async function autoCheckoutIfActive(userId: string) {
@@ -39,22 +36,8 @@ async function autoCheckoutIfActive(userId: string) {
     const checkOutTime = new Date()
     const diffInMs = checkOutTime.getTime() - new Date(activeSession.checkIn).getTime()
     const sessionHours = diffInMs / (1000 * 60 * 60)
-    const roundedSessionHours = Math.round(sessionHours * 100) / 100
-
-    const istNowForThreshold = new Date(checkOutTime.getTime() + (5.5 * 60 * 60 * 1000))
-    const thresholdIST = new Date(istNowForThreshold)
-    thresholdIST.setUTCHours(17, 30, 0, 0)
-    const thresholdUTC = new Date(thresholdIST.getTime() - (5.5 * 60 * 60 * 1000))
-
-    let sessionOvertimeHours = 0
-    if (activeSession.isOvertime) {
-        sessionOvertimeHours = roundedSessionHours
-    } else if (checkOutTime.getTime() > thresholdUTC.getTime()) {
-        const checkInUTC = new Date(activeSession.checkIn)
-        const otStart = checkInUTC.getTime() > thresholdUTC.getTime() ? checkInUTC : thresholdUTC
-        const otMs = checkOutTime.getTime() - otStart.getTime()
-        sessionOvertimeHours = Math.max(0, Math.round((otMs / (1000 * 60 * 60)) * 100) / 100)
-    }
+    const roundedSessionHours = roundHours(sessionHours)
+    const sessionOvertimeHours = calculateOvertimeHours(activeSession.checkIn, checkOutTime)
 
     await prisma.attendanceSession.update({
         where: {
@@ -64,7 +47,7 @@ async function autoCheckoutIfActive(userId: string) {
             checkOut: checkOutTime,
             hoursWorked: roundedSessionHours,
             overtimeHours: sessionOvertimeHours,
-            isOvertime: activeSession.isOvertime || sessionOvertimeHours > 0,
+            isOvertime: sessionOvertimeHours > 0,
         },
     })
 
@@ -74,16 +57,16 @@ async function autoCheckoutIfActive(userId: string) {
         },
     })
 
-    const totalHours = allSessions.reduce((sum, s) => sum + s.hoursWorked, 0)
-    const totalOvertimeHours = allSessions.reduce((sum, s) => sum + s.overtimeHours, 0)
+    const totalHours = allSessions.reduce((sum, s) => sum + (s.hoursWorked || 0), 0)
+    const totalOvertimeHours = allSessions.reduce((sum, s) => sum + (s.overtimeHours || 0), 0)
 
     await prisma.attendance.update({
         where: {
             id: attendance.id,
         },
         data: {
-            totalHours: Math.round(totalHours * 100) / 100,
-            overtimeHours: Math.round(totalOvertimeHours * 100) / 100,
+            totalHours: roundHours(totalHours),
+            overtimeHours: roundHours(totalOvertimeHours),
             isOvertime: totalOvertimeHours > 0,
         },
     })

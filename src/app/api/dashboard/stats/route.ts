@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
+import { getISTStartOfDayUTC } from '@/lib/time-utils'
 
 export async function GET() {
     try {
@@ -9,8 +10,7 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
+        const today = getISTStartOfDayUTC()
 
         const where: Record<string, any> = {}
         const reportWhere: Record<string, any> = {}
@@ -130,6 +130,8 @@ export async function GET() {
             totalReportsToday,
             pendingWfhRequests,
             totalOvertimeToday,
+            totalPresentToday,
+            totalAbsentToday,
         ] = await Promise.all([
             prisma.user.count(),
             prisma.user.count({ where: { status: 'ACTIVE' } }),
@@ -160,7 +162,29 @@ export async function GET() {
                 _sum: {
                     overtimeHours: true
                 }
-            })
+            }),
+            prisma.attendance.count({
+                where: {
+                    date: today,
+                    status: 'PRESENT',
+                    user: {
+                        status: 'ACTIVE',
+                        role: { not: 'ADMIN' },
+                    },
+                },
+            }),
+            prisma.user.count({
+                where: {
+                    status: 'ACTIVE',
+                    role: { not: 'ADMIN' },
+                    attendances: {
+                        none: {
+                            date: today,
+                            status: 'PRESENT',
+                        },
+                    },
+                },
+            }),
         ])
 
         return NextResponse.json({
@@ -172,6 +196,8 @@ export async function GET() {
                 completedProjects,
                 pendingProjects,
                 todayAttendance,
+                totalPresentToday,
+                totalAbsentToday,
                 totalReportsToday,
                 pendingWfhRequests,
                 totalOvertimeToday: totalOvertimeToday._sum.overtimeHours || 0,

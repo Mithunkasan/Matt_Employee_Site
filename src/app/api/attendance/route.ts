@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession, canViewAllAttendance } from '@/lib/auth'
+import { getSession } from '@/lib/auth'
 import { markAttendanceSchema } from '@/lib/validations'
+import { calculateOvertimeHours, getISTStartOfDayUTC, roundHours } from '@/lib/time-utils'
 
 // GET attendance records
 export async function GET(request: NextRequest) {
@@ -61,6 +62,33 @@ export async function GET(request: NextRequest) {
             orderBy: { date: 'desc' },
         })
 
+        let summary: { presentToday: number; absentToday: number } | undefined
+        if (session.role === 'ADMIN' || session.role === 'HR') {
+            const today = getISTStartOfDayUTC()
+            const workforceWhere = {
+                status: 'ACTIVE' as const,
+                role: { not: 'ADMIN' as const },
+            }
+
+            const [totalWorkforce, presentToday] = await Promise.all([
+                prisma.user.count({
+                    where: workforceWhere,
+                }),
+                prisma.attendance.count({
+                    where: {
+                        date: today,
+                        status: 'PRESENT',
+                        user: workforceWhere,
+                    },
+                }),
+            ])
+
+            summary = {
+                presentToday,
+                absentToday: Math.max(0, totalWorkforce - presentToday),
+            }
+        }
+
         // Transform to include computed fields for backward compatibility
         const now = new Date()
         const transformedAttendances = attendances.map(attendance => {
@@ -80,34 +108,22 @@ export async function GET(request: NextRequest) {
 
                 totalHours += hours
 
-                // Handle overtime (5:30 PM IST threshold)
-                const istNowForThreshold = new Date(checkInTime.getTime() + (5.5 * 60 * 60 * 1000))
-                const thresholdIST = new Date(istNowForThreshold)
-                thresholdIST.setUTCHours(17, 30, 0, 0)
-                const thresholdUTC = new Date(thresholdIST.getTime() - (5.5 * 60 * 60 * 1000))
-
-                if (session.isOvertime) {
-                    totalOvertimeHours += hours
-                } else if (checkOutTime.getTime() > thresholdUTC.getTime()) {
-                    const otStart = checkInTime.getTime() > thresholdUTC.getTime() ? checkInTime.getTime() : thresholdUTC.getTime()
-                    const otMs = checkOutTime.getTime() - otStart
-                    totalOvertimeHours += Math.max(0, otMs / (1000 * 60 * 60))
-                }
+                totalOvertimeHours += calculateOvertimeHours(checkInTime, checkOutTime)
             })
 
             return {
                 ...attendance,
                 checkIn: firstSession?.checkIn || null,
                 checkOut: hasActiveSession ? null : lastSession?.checkOut || null,
-                workingHours: Math.round(totalHours * 100) / 100,
-                overtimeHours: Math.round(totalOvertimeHours * 100) / 100,
+                workingHours: roundHours(totalHours),
+                overtimeHours: roundHours(totalOvertimeHours),
                 isOvertime: totalOvertimeHours > 0,
                 // Remove sessions from response to keep it clean
                 sessions: undefined,
             }
         })
 
-        return NextResponse.json({ attendances: transformedAttendances })
+        return NextResponse.json({ attendances: transformedAttendances, summary })
     } catch (error) {
         console.error('Get attendance error:', error)
         return NextResponse.json(

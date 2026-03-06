@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
+import { calculateOvertimeHours, getISTStartOfDayUTC, roundHours } from '@/lib/time-utils'
 
 export async function GET() {
     try {
@@ -15,9 +16,7 @@ export async function GET() {
         }
 
         const now = new Date()
-        const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
-        const today = new Date(istNow)
-        today.setUTCHours(0, 0, 0, 0)
+        const today = getISTStartOfDayUTC(now)
 
         // Get all attendance records for today with sessions and user info
         const attendances = await prisma.attendance.findMany({
@@ -69,9 +68,6 @@ export async function GET() {
             let totalHours = 0
             let totalOvertimeHours = 0
 
-            const thresholdHour = 17
-            const thresholdMinute = 30
-
             attendance.sessions.forEach((session: any) => {
                 const checkInTime = new Date(session.checkIn)
                 const checkOutTime = session.checkOut ? new Date(session.checkOut) : now
@@ -79,20 +75,7 @@ export async function GET() {
                 const hours = diffInMs / (1000 * 60 * 60)
 
                 totalHours += hours
-
-                // Threshold at 5:30 PM IST
-                const istNowForThreshold = new Date(checkInTime.getTime() + (5.5 * 60 * 60 * 1000))
-                const thresholdIST = new Date(istNowForThreshold)
-                thresholdIST.setUTCHours(17, 30, 0, 0)
-                const thresholdUTC = new Date(thresholdIST.getTime() - (5.5 * 60 * 60 * 1000))
-
-                if (session.isOvertime) {
-                    totalOvertimeHours += hours
-                } else if (checkOutTime.getTime() > thresholdUTC.getTime()) {
-                    const otStart = checkInTime.getTime() > thresholdUTC.getTime() ? checkInTime.getTime() : thresholdUTC.getTime()
-                    const otMs = checkOutTime.getTime() - otStart
-                    totalOvertimeHours += Math.max(0, otMs / (1000 * 60 * 60))
-                }
+                totalOvertimeHours += calculateOvertimeHours(checkInTime, checkOutTime)
             })
 
             return {
@@ -104,8 +87,8 @@ export async function GET() {
                 },
                 date: attendance.date,
                 status: attendance.status,
-                totalHours: Math.round(totalHours * 100) / 100,
-                overtimeHours: Math.round(totalOvertimeHours * 100) / 100,
+                totalHours: roundHours(totalHours),
+                overtimeHours: roundHours(totalOvertimeHours),
                 isOvertime: totalOvertimeHours > 0,
                 sessions: attendance.sessions,
                 isOnline,
@@ -126,7 +109,7 @@ export async function GET() {
                 totalEmployees: employees.length,
                 onlineCount: employees.filter((e: any) => e.isOnline).length,
                 offlineCount: employees.filter((e: any) => !e.isOnline).length,
-                totalHours: Math.round(employees.reduce((sum: any, e: any) => sum + e.totalHours, 0) * 100) / 100,
+                totalHours: roundHours(employees.reduce((sum: any, e: any) => sum + e.totalHours, 0)),
             },
         })
     } catch (error) {
