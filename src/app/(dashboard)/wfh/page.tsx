@@ -114,7 +114,7 @@ export default function WfhRequestsPage() {
                 {user?.role === 'BA' && <WfhRequestButton />}
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 {/* Stats Summary */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">

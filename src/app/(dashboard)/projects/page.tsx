@@ -259,7 +259,7 @@ export default function ProjectsPage() {
                 description={`${projects.length} total projects in workspace`}
             />
 
-            <div className="p-6 max-w-[1600px] mx-auto">
+            <div className="p-4 sm:p-6 max-w-[1600px] mx-auto">
                 {/* Customized Filter Section */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 mb-8 shadow-sm">
                     <div className="flex flex-col lg:flex-row gap-6">
@@ -510,7 +510,8 @@ export default function ProjectsPage() {
 
                     <TabsContent value="list">
                         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                            <table className="w-full">
+                            <div className="w-full overflow-x-auto">
+                                <table className="w-full min-w-[760px]">
                                 <thead>
                                     <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
                                         <th className="text-left p-4 font-semibold text-slate-900 dark:text-white">Project</th>
@@ -561,7 +562,8 @@ export default function ProjectsPage() {
                                         </tr>
                                     ))}
                                 </tbody>
-                            </table>
+                                </table>
+                            </div>
                         </div>
                     </TabsContent>
                 </Tabs>

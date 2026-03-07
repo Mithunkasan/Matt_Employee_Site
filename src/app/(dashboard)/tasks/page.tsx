@@ -186,7 +186,7 @@ export default function TaskAllocationPage() {
         return matchesSearch && matchesProject
     })
 
-    if (!canManageTasks) return <div className="p-6 text-center text-red-500 font-bold">Unauthorized Access</div>
+    if (!canManageTasks) return <div className="p-4 sm:p-6 text-center text-red-500 font-bold">Unauthorized Access</div>
 
     if (loading) return <PageLoader />
 
@@ -197,7 +197,7 @@ export default function TaskAllocationPage() {
                 description="Assign specific tasks to Employees and Business Analysts"
             />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row gap-4 mb-6">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -231,7 +231,7 @@ export default function TaskAllocationPage() {
                         </div>
                     ) : (
                         filteredTasks.map(task => (
-                            <Card key={task.id} className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:shadow-md transition-all group">
+                            <Card key={task.id} className="p-4 sm:p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:shadow-md transition-all group">
                                 <div className="flex justify-between items-start mb-4">
                                     <Badge variant="outline" className="bg-blue-50/50 dark:bg-blue-900/10 text-blue-600 border-blue-100 dark:border-blue-800 text-[10px] uppercase font-bold tracking-tight">
                                         {task.project.title}

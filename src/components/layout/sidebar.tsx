@@ -30,7 +30,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useState } from 'react'
 import { getInitials, getRoleColor } from '@/lib/utils'
 
 interface NavItem {
@@ -109,10 +108,21 @@ const navItems: NavItem[] = [
     },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+    isCollapsed: boolean
+    onCollapsedChange: (collapsed: boolean) => void
+    isMobileOpen: boolean
+    onMobileOpenChange: (open: boolean) => void
+}
+
+export function Sidebar({
+    isCollapsed,
+    onCollapsedChange,
+    isMobileOpen,
+    onMobileOpenChange,
+}: SidebarProps) {
     const pathname = usePathname()
     const { user, logout } = useAuth()
-    const [collapsed, setCollapsed] = useState(false)
 
     if (!user) return null
 
@@ -131,17 +141,17 @@ export function Sidebar() {
             <div
                 className={cn(
                     'fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity',
-                    collapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                    isMobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 )}
-                onClick={() => setCollapsed(true)}
+                onClick={() => onMobileOpenChange(false)}
             />
 
             {/* Mobile menu button */}
             <Button
                 variant="ghost"
                 size="icon"
-                className="fixed top-4 left-4 z-50 lg:hidden"
-                onClick={() => setCollapsed(!collapsed)}
+                className="fixed top-3 left-3 z-50 lg:hidden bg-white/90 hover:bg-white dark:bg-slate-900/90 dark:hover:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-700"
+                onClick={() => onMobileOpenChange(!isMobileOpen)}
             >
                 <Menu className="h-6 w-6" />
             </Button>
@@ -149,13 +159,14 @@ export function Sidebar() {
             {/* Sidebar */}
             <aside
                 className={cn(
-                    'fixed left-0 top-0 z-40 h-screen bg-[#13498a] border-r border-[#13498a]/20 transition-all duration-300 flex flex-col overflow-y-auto shadow-2xl shadow-[#13498a]/20',
-                    collapsed ? '-translate-x-full lg:translate-x-0 lg:w-20' : 'translate-x-0 w-72'
+                    'fixed left-0 top-0 z-40 h-screen bg-[#13498a] border-r border-[#13498a]/20 transition-[transform,width] duration-300 flex flex-col overflow-y-auto shadow-2xl shadow-[#13498a]/20 w-72 lg:translate-x-0',
+                    isMobileOpen ? 'translate-x-0' : '-translate-x-full',
+                    isCollapsed ? 'lg:w-20' : 'lg:w-72'
                 )}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-[#13498a]/20">
-                    <div className={cn('flex items-center gap-3', collapsed && 'lg:hidden')}>
+                    <div className={cn('flex items-center gap-3', isCollapsed && 'lg:hidden')}>
                         <div className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-black/10">
                             <img src="/logo.png" alt="Matt Engineering" className="h-9 w-9" />
                         </div>
@@ -168,9 +179,9 @@ export function Sidebar() {
                         variant="ghost"
                         size="icon"
                         className="hidden lg:flex text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                        onClick={() => setCollapsed(!collapsed)}
+                        onClick={() => onCollapsedChange(!isCollapsed)}
                     >
-                        <ChevronLeft className={cn('h-5 w-5 transition-transform', collapsed && 'rotate-180')} />
+                        <ChevronLeft className={cn('h-5 w-5 transition-transform', isCollapsed && 'rotate-180')} />
                     </Button>
                 </div>
 
@@ -181,7 +192,7 @@ export function Sidebar() {
 
                         const handleClick = () => {
                             if (window.innerWidth < 1024) {
-                                setCollapsed(true)
+                                onMobileOpenChange(false)
                             }
                         }
 
@@ -198,7 +209,7 @@ export function Sidebar() {
                                 onClick={handleClick}
                             >
                                 <span className={cn(isActive && 'text-white')}>{item.icon}</span>
-                                <span className={cn('font-medium', collapsed && 'lg:hidden')}>
+                                <span className={cn('font-medium', isCollapsed && 'lg:hidden')}>
                                     {item.title}
                                 </span>
                                 {isActive && (
@@ -216,7 +227,7 @@ export function Sidebar() {
                             <button
                                 className={cn(
                                     'w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 transition-colors',
-                                    collapsed && 'lg:justify-center'
+                                    isCollapsed && 'lg:justify-center'
                                 )}
                             >
                                 <Avatar className="h-10 w-10 border-2 border-white/20 shadow-lg shadow-black/10">
@@ -224,7 +235,7 @@ export function Sidebar() {
                                         {getInitials(user.name)}
                                     </AvatarFallback>
                                 </Avatar>
-                                <div className={cn('flex-1 text-left', collapsed && 'lg:hidden')}>
+                                <div className={cn('flex-1 text-left', isCollapsed && 'lg:hidden')}>
                                     <p className="font-semibold text-white truncate">{user.name}</p>
                                     <Badge variant="outline" className={cn('text-[10px] mt-1 text-white border-white/30 h-4 px-1.5 uppercase font-bold tracking-wider', getRoleColor(user.role))}>
                                         {user.role}

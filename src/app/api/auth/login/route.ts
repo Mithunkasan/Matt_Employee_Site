@@ -8,7 +8,7 @@ import { calculateOvertimeHours, getISTOvertimeThresholdUTC, roundHours } from '
 
 const ACTIVE_SESSION_TIMEOUT_MS = 20 * 60 * 1000
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
-const OFFICE_START_HOUR_IST = 9
+const OFFICE_START_HOUR_IST = 8
 const OFFICE_END_HOUR_IST = 17
 const OFFICE_END_MINUTE_IST = 30
 
@@ -96,14 +96,12 @@ export async function POST(request: NextRequest) {
         const shouldEnforceSingleLogin = user.role !== 'ADMIN'
         const officeWindowStatus = getOfficeWindowStatus(now)
 
-        if (user.role !== 'ADMIN' && officeWindowStatus.isBeforeOfficeHours) {
-            return NextResponse.json(
-                { error: 'Login is allowed only during office hours (9:00 AM to 5:30 PM IST).' },
-                { status: 403 }
-            )
-        }
-
-        if (user.role !== 'ADMIN' && officeWindowStatus.isAfterOfficeHours) {
+        if (user.role !== 'ADMIN' && (officeWindowStatus.isBeforeOfficeHours || officeWindowStatus.isAfterOfficeHours)) {
+            const isBeforeOfficeHours = officeWindowStatus.isBeforeOfficeHours
+            const requestReason = isBeforeOfficeHours
+                ? 'Auto-generated from before-office-hours login attempt'
+                : 'Auto-generated from after-hours login attempt'
+            const requestTimeLabel = isBeforeOfficeHours ? 'before 8:00 AM' : 'after 5:30 PM'
             const requestDate = new Date(`${getIstDateKey(now)}T00:00:00Z`)
             let overtimeRequest = await prisma.overtimeLoginRequest.findUnique({
                 where: {
@@ -119,7 +117,7 @@ export async function POST(request: NextRequest) {
                     data: {
                         userId: user.id,
                         requestDate,
-                        reason: 'Auto-generated from after-hours login attempt',
+                        reason: requestReason,
                     },
                 })
             } else if (overtimeRequest.status === 'REJECTED') {
@@ -127,8 +125,16 @@ export async function POST(request: NextRequest) {
                     where: { id: overtimeRequest.id },
                     data: {
                         status: 'PENDING',
+                        reason: requestReason,
                         reviewedAt: null,
                         reviewedById: null,
+                    },
+                })
+            } else if (overtimeRequest.reason !== requestReason) {
+                overtimeRequest = await prisma.overtimeLoginRequest.update({
+                    where: { id: overtimeRequest.id },
+                    data: {
+                        reason: requestReason,
                     },
                 })
             }
@@ -158,14 +164,14 @@ export async function POST(request: NextRequest) {
                         data: {
                             userId: admin.id,
                             title: 'Overtime Login Request',
-                            message: `${dedupeKey} ${user.name} (${user.email}) requested login access after 5:30 PM.`,
+                            message: `${dedupeKey} ${user.name} (${user.email}) requested login access ${requestTimeLabel}.`,
                         },
                     })
                 }
 
                 return NextResponse.json(
                     {
-                        error: 'Office hours are over. Overtime request has been sent to admin. You can log in after approval.',
+                        error: 'Login is allowed only between 8:00 AM and 5:30 PM IST. Your request has been sent to admin. You can log in after approval.',
                     },
                     { status: 403 }
                 )

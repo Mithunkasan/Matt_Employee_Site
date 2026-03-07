@@ -275,7 +275,7 @@ export default function EmployeesPage() {
                 description={`${employees.length} team members`}
             />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 {/* Stats Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-10 gap-4 mb-6">
                     <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
@@ -520,7 +520,7 @@ export default function EmployeesPage() {
             {/* Create/Edit Dialog */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto p-0 gap-0">
-                    <div className="p-6">
+                    <div className="p-4 sm:p-6">
                         <DialogHeader>
                             <DialogTitle>
                                 {editingEmployee ? 'Edit Employee' : 'Add New Employee'}

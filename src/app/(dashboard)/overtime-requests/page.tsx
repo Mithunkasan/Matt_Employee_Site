@@ -103,7 +103,7 @@ export default function OvertimeRequestsPage() {
                 description={isAdmin ? 'Approve or reject after-hours login access' : 'Track your after-hours login requests'}
             />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                         <div className="flex items-center gap-3">

@@ -107,20 +107,19 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen">
-            <div className="flex items-center justify-between px-6 pt-6">
-                <Header
-                    title={`Welcome, ${user?.name?.split(' ')[0] || 'User'}!`}
-                    description={`Here's your ${isEmployee ? 'work' : 'team'} overview for today`}
-                />
+            <Header
+                title={`Welcome, ${user?.name?.split(' ')[0] || 'User'}!`}
+                description={`Here's your ${isEmployee ? 'work' : 'team'} overview for today`}
+            />
+
+            <div className="p-4 sm:p-6 space-y-6">
                 {/* Leave Request Button - Show for all except Admin */}
                 {user?.role !== 'ADMIN' && (
-                    <div className="ml-4">
+                    <div className="flex justify-end">
                         <LeaveRequestButton approvedLeavesCount={approvedLeavesCount} />
                     </div>
                 )}
-            </div>
 
-            <div className="p-6 space-y-6">
                 {/* Stats Grid */}
                 {isEmployee ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -200,7 +199,7 @@ export default function DashboardPage() {
                 {/* Employee Activity Monitor - Admin Only */}
                 {user?.role === 'ADMIN' && (
                     <Link href="/employee-activity">
-                        <Card className="p-6 bg-gradient-to-br from-[#13498a] via-[#1a3a61] to-[#b12024] border-0 hover:shadow-xl transition-all cursor-pointer group">
+                        <Card className="p-4 sm:p-6 bg-gradient-to-br from-[#13498a] via-[#1a3a61] to-[#b12024] border-0 hover:shadow-xl transition-all cursor-pointer group">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
                                     <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -236,7 +235,7 @@ export default function DashboardPage() {
                 {/* Project Allocation Card - Managers & Team Leaders */}
                 {['MANAGER', 'TEAM_LEADER'].includes(user?.role || '') && (
                     <Link href="/projects">
-                        <Card className="p-6 bg-gradient-to-br from-[#13498a] via-[#1a3a61] to-[#7c3aed] border-0 hover:shadow-xl transition-all cursor-pointer group mb-6">
+                        <Card className="p-4 sm:p-6 bg-gradient-to-br from-[#13498a] via-[#1a3a61] to-[#7c3aed] border-0 hover:shadow-xl transition-all cursor-pointer group mb-6">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
                                     <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -332,7 +331,7 @@ export default function DashboardPage() {
                     </Card>
 
                     {/* Recent Activity / Reports */}
-                    <Card className="p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                    <Card className="p-4 sm:p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -387,7 +386,7 @@ export default function DashboardPage() {
 
                 {/* Quick Actions for Employees, HR, BA, Manager, Team Leader */}
                 {(isEmployee || ['HR', 'BA', 'MANAGER', 'TEAM_LEADER'].includes(user?.role || '')) && (
-                    <Card className="p-6 bg-gradient-to-br from-[#13498a] to-[#0a1e3a] border-white/5">
+                    <Card className="p-4 sm:p-6 bg-gradient-to-br from-[#13498a] to-[#0a1e3a] border-white/5">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-lg font-semibold text-white">Quick Actions</h2>
                             <WfhRequestButton />

@@ -22,24 +22,28 @@ export function LoadingSpinner({ size = 'md', className, text }: LoadingSpinnerP
         lg: 'h-16 w-16',
     }
 
-    const ringThickness = {
-        sm: 'border-[2px]',
-        md: 'border-[3px]',
-        lg: 'border-[4px]',
+    const ringInset = {
+        sm: 'inset-0.5',
+        md: 'inset-1',
+        lg: 'inset-1.5',
     }
 
     return (
         <div className={cn('flex flex-col items-center justify-center gap-4', className)}>
             <div className={cn('relative flex items-center justify-center', sizeClasses[size])}>
+                <div className="absolute inset-0 rounded-full border border-slate-200 dark:border-slate-700" />
                 <div
-                    className={cn(
-                        'absolute inset-0 rounded-full animate-spin border-slate-200 dark:border-slate-700 border-t-slate-500 dark:border-t-slate-200',
-                        ringThickness[size]
-                    )}
-                    style={{ animationDuration: '0.9s', animationTimingFunction: 'linear' }}
+                    className={cn('absolute rounded-full animate-spin', ringInset[size])}
+                    style={{
+                        animationDuration: '2.8s',
+                        animationTimingFunction: 'linear',
+                        background: 'conic-gradient(from 0deg, transparent 0deg 300deg, rgba(19,73,138,0.95) 300deg 338deg, transparent 338deg 360deg)',
+                        WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px))',
+                        mask: 'radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px))',
+                    }}
                 />
 
-                <div className="absolute inset-[24%] rounded-full bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px]" />
+                <div className="absolute inset-[24%] rounded-full bg-white/80 dark:bg-slate-900/75 backdrop-blur-[1px]" />
                 <div className={cn('relative rounded-full overflow-hidden bg-white shadow-sm flex items-center justify-center p-1', logoSizes[size])}>
                     <div className="relative w-full h-full">
                         <Image

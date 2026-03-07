@@ -53,7 +53,7 @@ export default function SettingsPage() {
         <div className="min-h-screen">
             <Header title="Settings" description="Manage your account" />
 
-            <div className="p-6 max-w-4xl mx-auto">
+            <div className="p-4 sm:p-6 max-w-4xl mx-auto">
                 {/* Profile Card */}
                 <Card className="p-8 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50 mb-6">
                     <div className="flex flex-col md:flex-row md:items-center gap-6">
@@ -153,7 +153,7 @@ export default function SettingsPage() {
                 </Card>
 
                 {/* Info Card */}
-                <Card className="p-6 mt-6 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border-violet-500/20">
+                <Card className="p-4 sm:p-6 mt-6 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border-violet-500/20">
                     <h4 className="font-medium text-slate-900 dark:text-white mb-2">
                         Need Help?
                     </h4>
