@@ -290,9 +290,9 @@ export default function AttendancePage() {
                 description={canViewAll ? 'Team attendance overview' : 'Track your work hours'}
             />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 {/* Today's Status Card */}
-                <Card className="p-6 mb-6 bg-gradient-to-br from-slate-900 to-slate-800 border-slate-700/50">
+                <Card className="p-4 sm:p-6 mb-6 bg-gradient-to-br from-slate-900 to-slate-800 border-slate-700/50">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <h2 className="text-lg font-semibold text-white mb-1">Today's Attendance</h2>

@@ -206,7 +206,7 @@ export default function ProjectDetailPage() {
         <div className="min-h-screen">
             <Header title="Project Details" />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 {/* Back button */}
                 <Button
                     variant="ghost"
@@ -221,7 +221,7 @@ export default function ProjectDetailPage() {
                     {/* Main Content */}
                     <div className="lg:col-span-2 space-y-6">
                         {/* Project Header */}
-                        <Card className="p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                        <Card className="p-4 sm:p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <Badge variant="outline" className={getStatusColor(project.status)}>
@@ -294,7 +294,7 @@ export default function ProjectDetailPage() {
                         </Card>
 
                         {/* Daily Reports */}
-                        <Card className="p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                        <Card className="p-4 sm:p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                             <div className="flex items-center justify-between mb-6">
                                 <div>
                                     <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -354,7 +354,7 @@ export default function ProjectDetailPage() {
                     {/* Sidebar */}
                     <div className="space-y-6">
                         {/* Assigned User */}
-                        <Card className="p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                        <Card className="p-4 sm:p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                             <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-4">
                                 Assigned To
                             </h3>
@@ -378,7 +378,7 @@ export default function ProjectDetailPage() {
                         </Card>
 
                         {/* Project Info */}
-                        <Card className="p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                        <Card className="p-4 sm:p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                             <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-4">
                                 Project Details
                             </h3>

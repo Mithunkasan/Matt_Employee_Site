@@ -247,7 +247,7 @@ export default function AttendanceReportPage() {
         setEmpSummaryOpen(true)
     }
 
-    if (!canView) return <div className="p-6 text-center">Unauthorized</div>
+    if (!canView) return <div className="p-4 sm:p-6 text-center">Unauthorized</div>
 
     return (
         <div className="min-h-screen pb-10">
@@ -256,7 +256,7 @@ export default function AttendanceReportPage() {
                 description={`View ${reportType} attendance for your team`}
             />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <Card className="p-4 mb-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">

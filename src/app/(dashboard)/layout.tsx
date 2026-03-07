@@ -4,7 +4,7 @@ import { useAuth } from '@/context/auth-context'
 import { Sidebar } from '@/components/layout/sidebar'
 import { PageLoader } from '@/components/shared/loading-spinner'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function DashboardLayout({
     children,
@@ -13,6 +13,8 @@ export default function DashboardLayout({
 }) {
     const { user, loading } = useAuth()
     const router = useRouter()
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
     useEffect(() => {
         if (!loading && !user) {
@@ -34,8 +36,15 @@ export default function DashboardLayout({
 
     return (
         <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
-            <Sidebar />
-            <main className="flex-1 ml-0 lg:ml-72">
+            <Sidebar
+                isCollapsed={isSidebarCollapsed}
+                onCollapsedChange={setIsSidebarCollapsed}
+                isMobileOpen={isMobileSidebarOpen}
+                onMobileOpenChange={setIsMobileSidebarOpen}
+            />
+            <main
+                className={`flex-1 min-w-0 transition-[margin] duration-300 ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72'}`}
+            >
                 {children}
             </main>
         </div>

@@ -9,6 +9,7 @@ const REPEATED_INTERVAL_TIMEOUT = 5 * 60 * 1000 // 5 minutes
 const REPEATED_KEY_MIN_INTERVAL_MS = 80
 const REPEATED_KEY_MAX_INTERVAL_MS = 400 // very short interval spam
 const UPDATE_THROTTLE_MS = 60 * 1000 // 1 minute
+const SESSION_CHECK_INTERVAL_MS = 60 * 1000 // 1 minute
 
 export function ActivityTracker() {
     const { user } = useAuth()
@@ -143,6 +144,17 @@ export function ActivityTracker() {
     useEffect(() => {
         if (!user) return
 
+        const sessionCheckTimer = setInterval(async () => {
+            try {
+                const res = await fetch('/api/auth/session', { cache: 'no-store' })
+                if (!res.ok) {
+                    window.location.replace('/login')
+                }
+            } catch {
+                // Ignore transient network errors in the client.
+            }
+        }, SESSION_CHECK_INTERVAL_MS)
+
         const handleActivity = () => {
             const now = Date.now()
             if (now - lastUpdateRef.current > 1000) {
@@ -198,6 +210,7 @@ export function ActivityTracker() {
             window.removeEventListener('focus', handleWindowFocus)
             document.removeEventListener('visibilitychange', handleVisibilityChange)
             if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+            clearInterval(sessionCheckTimer)
         }
     }, [user])
 

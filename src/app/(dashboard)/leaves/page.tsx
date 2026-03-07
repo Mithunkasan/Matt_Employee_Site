@@ -169,8 +169,8 @@ export default function LeaveRequestsPage() {
         return (
             <div className="min-h-screen">
                 <Header title="Leave Requests" description="Access restricted" />
-                <div className="p-6">
-                    <Card className="p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
+                <div className="p-4 sm:p-6">
+                    <Card className="p-4 sm:p-6 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">
                         <p className="text-slate-600 dark:text-slate-300">
                             Only Admin can view, approve, or reject leave requests.
                         </p>
@@ -187,7 +187,7 @@ export default function LeaveRequestsPage() {
                 description={isAdmin ? 'Review and manage leave requests' : 'Your leave requests'}
             />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 {/* Stats Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <Card className="p-4 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50">

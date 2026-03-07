@@ -10,7 +10,7 @@ export default function EmployeeActivityPage() {
                 title="Employee Activity Monitor"
                 description="Real-time view of employee online/offline status and work hours"
             />
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <EmployeeActivityDashboard />
             </div>
         </div>

@@ -439,7 +439,7 @@ export default function ReportsPage() {
                     </div>
 
                     <ScrollArea className="flex-1">
-                        <div className="p-6 max-w-5xl mx-auto w-full">
+                        <div className="p-4 sm:p-6 max-w-5xl mx-auto w-full">
                             {sortedDates.length === 0 ? (
                                 <Card className="p-16 text-center bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 border-dashed">
                                     <div className="h-20 w-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -468,7 +468,7 @@ export default function ReportsPage() {
                                                 {groupedReports[date].map((report) => (
                                                     <Card
                                                         key={report.id}
-                                                        className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-400/50 dark:hover:border-blue-500/30 transition-all hover:shadow-xl hover:-translate-y-1 group"
+                                                        className="p-4 sm:p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-400/50 dark:hover:border-blue-500/30 transition-all hover:shadow-xl hover:-translate-y-1 group"
                                                     >
                                                         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
                                                             <div className="flex items-center gap-4">
@@ -677,7 +677,7 @@ export default function ReportsPage() {
                         </DialogDescription>
                     </div>
 
-                    <form onSubmit={handleReply} className="p-6 space-y-5 bg-white dark:bg-slate-950">
+                    <form onSubmit={handleReply} className="p-4 sm:p-6 space-y-5 bg-white dark:bg-slate-950">
                         <div className="space-y-2">
                             <Label className="text-xs font-bold uppercase text-slate-400">Your Message</Label>
                             <Textarea
