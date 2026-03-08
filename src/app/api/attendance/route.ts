@@ -4,6 +4,87 @@ import { getSession } from '@/lib/auth'
 import { markAttendanceSchema } from '@/lib/validations'
 import { calculateOvertimeHours, getISTStartOfDayUTC, roundHours } from '@/lib/time-utils'
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
+
+function getISTOfficeEndUTC(reference: Date): Date {
+    const shifted = new Date(reference.getTime() + IST_OFFSET_MS)
+    return new Date(Date.UTC(
+        shifted.getUTCFullYear(),
+        shifted.getUTCMonth(),
+        shifted.getUTCDate(),
+        12,
+        0,
+        0,
+        0
+    ))
+}
+
+async function autoCheckoutMissedSessions(now: Date) {
+    const today = getISTStartOfDayUTC(now)
+    const isAfterOfficeEndToday = now.getTime() >= getISTOfficeEndUTC(now).getTime()
+
+    const staleSessions = await prisma.attendanceSession.findMany({
+        where: {
+            checkOut: null,
+            attendance: {
+                date: isAfterOfficeEndToday ? { lte: today } : { lt: today },
+            },
+        },
+        include: {
+            attendance: {
+                select: {
+                    id: true,
+                    date: true,
+                },
+            },
+        },
+    })
+
+    if (staleSessions.length === 0) return
+
+    const attendanceIdsToRecalculate = new Set<string>()
+
+    for (const staleSession of staleSessions) {
+        const checkInTime = new Date(staleSession.checkIn)
+        const officeEndUTC = getISTOfficeEndUTC(new Date(staleSession.attendance.date))
+        const checkOutTime = officeEndUTC.getTime() > checkInTime.getTime() ? officeEndUTC : checkInTime
+        const sessionHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60)
+        const roundedSessionHours = Math.max(0, roundHours(sessionHours))
+        const sessionOvertimeHours = calculateOvertimeHours(checkInTime, checkOutTime)
+
+        await prisma.attendanceSession.update({
+            where: { id: staleSession.id },
+            data: {
+                checkOut: checkOutTime,
+                hoursWorked: roundedSessionHours,
+                overtimeHours: sessionOvertimeHours,
+                isOvertime: sessionOvertimeHours > 0,
+            },
+        })
+
+        attendanceIdsToRecalculate.add(staleSession.attendanceId)
+    }
+
+    for (const attendanceId of attendanceIdsToRecalculate) {
+        const allSessions = await prisma.attendanceSession.findMany({
+            where: { attendanceId },
+            select: { hoursWorked: true, overtimeHours: true },
+        })
+
+        const totalHours = allSessions.reduce((sum, s) => sum + (s.hoursWorked || 0), 0)
+        const totalOvertimeHours = allSessions.reduce((sum, s) => sum + (s.overtimeHours || 0), 0)
+
+        await prisma.attendance.update({
+            where: { id: attendanceId },
+            data: {
+                totalHours: roundHours(totalHours),
+                overtimeHours: roundHours(totalOvertimeHours),
+                isOvertime: totalOvertimeHours > 0,
+            },
+        })
+    }
+}
+
 // GET attendance records
 export async function GET(request: NextRequest) {
     try {
@@ -11,6 +92,8 @@ export async function GET(request: NextRequest) {
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
+
+        await autoCheckoutMissedSessions(new Date())
 
         const { searchParams } = new URL(request.url)
         const userId = searchParams.get('userId')
