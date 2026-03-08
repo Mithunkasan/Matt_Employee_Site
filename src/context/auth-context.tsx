@@ -14,7 +14,11 @@ interface User {
 interface AuthContextType {
     user: User | null
     loading: boolean
-    login: (email: string, password: string) => Promise<{ success: boolean; error?: string; sundayAlert?: string }>
+    login: (
+        email: string,
+        password: string,
+        options?: { requestLeaveOverride?: boolean }
+    ) => Promise<{ success: boolean; error?: string; sundayAlert?: string; requiresLeaveOverride?: boolean }>
     logout: () => Promise<void>
     refreshSession: () => Promise<void>
 }
@@ -46,12 +50,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshSession()
     }, [])
 
-    const login = async (email: string, password: string) => {
+    const login = async (
+        email: string,
+        password: string,
+        options?: { requestLeaveOverride?: boolean }
+    ) => {
         try {
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({
+                    email,
+                    password,
+                    requestLeaveOverride: options?.requestLeaveOverride === true,
+                }),
             })
 
             const data = await res.json()
@@ -69,7 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     sundayAlert: typeof data.sundayAlert === 'string' ? data.sundayAlert : undefined,
                 }
             } else {
-                return { success: false, error: data.error }
+                return {
+                    success: false,
+                    error: data.error,
+                    requiresLeaveOverride: data.requiresLeaveOverride === true,
+                }
             }
         } catch {
             return { success: false, error: 'Network error. Please try again.' }

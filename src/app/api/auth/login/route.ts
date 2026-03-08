@@ -50,6 +50,7 @@ function getOfficeWindowStatus(timestamp: number) {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
+        const requestLeaveOverride = body?.requestLeaveOverride === true
 
         // Validate input
         const validation = loginSchema.safeParse(body)
@@ -95,6 +96,98 @@ export async function POST(request: NextRequest) {
 
         const shouldEnforceSingleLogin = user.role !== 'ADMIN'
         const officeWindowStatus = getOfficeWindowStatus(now)
+        const requestDate = new Date(`${getIstDateKey(now)}T00:00:00Z`)
+
+        if (user.role !== 'ADMIN') {
+            const approvedLeave = await prisma.leaveRequest.findFirst({
+                where: {
+                    userId: user.id,
+                    status: 'APPROVED',
+                    startDate: { lte: requestDate },
+                    endDate: { gte: requestDate },
+                },
+                select: { id: true },
+            })
+
+            if (approvedLeave) {
+                let leaveOverrideRequest = await prisma.overtimeLoginRequest.findUnique({
+                    where: {
+                        userId_requestDate: {
+                            userId: user.id,
+                            requestDate,
+                        },
+                    },
+                })
+
+                const leaveOverrideReason = 'Auto-generated from leave-day login attempt'
+                const requestMessage = 'You are on leave today. Leave login approval request has been sent to admin. You can log in after approval.'
+
+                if (!requestLeaveOverride) {
+                    return NextResponse.json(
+                        { error: 'You are on leave today.', requiresLeaveOverride: true },
+                        { status: 403 }
+                    )
+                }
+
+                if (leaveOverrideRequest?.status === 'APPROVED') {
+                    // Already approved for this date; allow login.
+                } else {
+                    if (!leaveOverrideRequest) {
+                        leaveOverrideRequest = await prisma.overtimeLoginRequest.create({
+                            data: {
+                                userId: user.id,
+                                requestDate,
+                                reason: leaveOverrideReason,
+                            },
+                        })
+                    } else {
+                        leaveOverrideRequest = await prisma.overtimeLoginRequest.update({
+                            where: { id: leaveOverrideRequest.id },
+                            data: {
+                                status: 'PENDING',
+                                reason: leaveOverrideReason,
+                                reviewedAt: null,
+                                reviewedById: null,
+                            },
+                        })
+                    }
+
+                    const admins = await prisma.user.findMany({
+                        where: {
+                            role: 'ADMIN',
+                            status: 'ACTIVE',
+                        },
+                        select: { id: true },
+                    })
+                    const dedupeKey = `[leave-login][request:${leaveOverrideRequest.id}]`
+
+                    for (const admin of admins) {
+                        const existingNotification = await prisma.notification.findFirst({
+                            where: {
+                                userId: admin.id,
+                                title: 'Leave Login Request',
+                                message: { contains: dedupeKey },
+                            },
+                        })
+
+                        if (existingNotification) continue
+
+                        await prisma.notification.create({
+                            data: {
+                                userId: admin.id,
+                                title: 'Leave Login Request',
+                                message: `${dedupeKey} ${user.name} (${user.email}) requested login access while on approved leave.`,
+                            },
+                        })
+                    }
+
+                    return NextResponse.json(
+                        { error: requestMessage },
+                        { status: 403 }
+                    )
+                }
+            }
+        }
 
         if (user.role !== 'ADMIN' && (officeWindowStatus.isBeforeOfficeHours || officeWindowStatus.isAfterOfficeHours)) {
             const isBeforeOfficeHours = officeWindowStatus.isBeforeOfficeHours
@@ -102,7 +195,6 @@ export async function POST(request: NextRequest) {
                 ? 'Auto-generated from before-office-hours login attempt'
                 : 'Auto-generated from after-hours login attempt'
             const requestTimeLabel = isBeforeOfficeHours ? 'before 8:00 AM' : 'after 5:30 PM'
-            const requestDate = new Date(`${getIstDateKey(now)}T00:00:00Z`)
             let overtimeRequest = await prisma.overtimeLoginRequest.findUnique({
                 where: {
                     userId_requestDate: {

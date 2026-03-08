@@ -36,6 +36,23 @@ export default function LoginPage() {
                 window.alert(result.sundayAlert)
             }
             toast.success('Welcome back!')
+        } else if (result.requiresLeaveOverride) {
+            window.alert('You are on leave today.')
+            const shouldSendRequest = window.confirm(
+                'Do you want to send a login approval request to admin for today?'
+            )
+
+            if (shouldSendRequest) {
+                const overrideResult = await login(email, password, { requestLeaveOverride: true })
+                if (overrideResult.success) {
+                    if (overrideResult.sundayAlert) {
+                        window.alert(overrideResult.sundayAlert)
+                    }
+                    toast.success('Welcome back!')
+                } else {
+                    toast.error(overrideResult.error || 'Login failed')
+                }
+            }
         } else {
             toast.error(result.error || 'Login failed')
         }
