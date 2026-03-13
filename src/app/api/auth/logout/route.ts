@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { deleteSession, getSession } from '@/lib/auth'
+import { deleteSession, getSession } from '@/lib/auth-server'
 import prisma from '@/lib/prisma'
 
 export async function POST() {

@@ -9,6 +9,7 @@ interface User {
     name: string
     email: string
     role: Role
+    designation?: string | null
 }
 
 interface AuthContextType {
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     name: data.user.name,
                     email: data.user.email,
                     role: data.user.role,
+                    designation: data.user.designation,
                 })
                 router.push('/dashboard')
                 return {

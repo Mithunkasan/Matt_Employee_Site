@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/table'
 import { Clock, LogIn, LogOut, CheckCircle2, XCircle, Calendar, Download } from 'lucide-react'
 import { formatDate, getStatusColor } from '@/lib/utils'
+import { isHrLike } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface Attendance {
@@ -100,6 +101,7 @@ function dedupeByISTDate(records: Attendance[]): Attendance[] {
 
 export default function AttendancePage() {
     const { user } = useAuth()
+    const isHrUser = isHrLike(user?.role ?? 'EMPLOYEE', user?.designation ?? null)
     const [attendances, setAttendances] = useState<Attendance[]>([])
     const [loading, setLoading] = useState(true)
     const [markDialogOpen, setMarkDialogOpen] = useState(false)
@@ -117,7 +119,7 @@ export default function AttendancePage() {
         notes: '',
     })
 
-    const canViewAll = user?.role === 'ADMIN' || user?.role === 'HR'
+    const canViewAll = user?.role === 'ADMIN' || isHrUser
     const canUseCheckInOut = user?.role !== 'ADMIN'
 
     const downloadCSV = () => {

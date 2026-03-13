@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { getSession } from '@/lib/auth-server'
 import { createLeaveSchema } from '@/lib/validations'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import prisma from '@/lib/prisma'
-import { getSession, canManageEmployees } from '@/lib/auth'
+import { getSession } from '@/lib/auth-server'
+import { canManageEmployees, isHrLike } from '@/lib/auth'
 import { createUserSchema } from '@/lib/validations'
 
 // GET all users
@@ -11,6 +12,8 @@ export async function GET(request: NextRequest) {
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
+        const hrLike = isHrLike(session.role, session.designation)
+        const effectiveRole = hrLike ? 'HR' : session.role
 
         const { searchParams } = new URL(request.url)
         const role = searchParams.get('role')
@@ -38,7 +41,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Regular employees can only see limited info
-        if (['EMPLOYEE', 'INTERN', 'TEAM_COORDINATOR', 'PA'].includes(session.role)) {
+        if (['EMPLOYEE', 'INTERN', 'TEAM_COORDINATOR', 'PA'].includes(effectiveRole)) {
             const users = await prisma.user.findMany({
                 where,
                 select: {
@@ -95,9 +98,10 @@ export async function POST(request: NextRequest) {
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
+        const hrLike = isHrLike(session.role, session.designation)
 
         // Only ADMIN and HR can register users
-        if (session.role !== 'ADMIN' && session.role !== 'HR') {
+        if (session.role !== 'ADMIN' && !hrLike) {
             // Allow Managers/TLs to register if logic permits? 
             // Existing logic says: "Only ADMIN and HR can register users". 
             // But wait, the UI description says: "user?.role === 'MANAGER' ? 'Register a new Team Leader' ..."
@@ -130,7 +134,7 @@ export async function POST(request: NextRequest) {
         const { email, password, role, managerId: rawManagerId, ...userData } = validation.data
 
         // Role restriction for HR
-        if (session.role === 'HR' && role === 'ADMIN') {
+        if (hrLike && role === 'ADMIN') {
             return NextResponse.json(
                 { error: 'HR cannot create Admin accounts' },
                 { status: 403 }
@@ -171,7 +175,7 @@ export async function POST(request: NextRequest) {
             finalManagerId = undefined
         } else {
             // Auto assignment logic (fallback)
-            if (session.role === 'HR') {
+            if (hrLike) {
                 if (role === 'BA' || role === 'MANAGER') {
                     finalManagerId = session.userId // Managed by HR
                 }

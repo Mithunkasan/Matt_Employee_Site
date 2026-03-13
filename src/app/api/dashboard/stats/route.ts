@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { getSession } from '@/lib/auth-server'
 import { getISTStartOfDayUTC } from '@/lib/time-utils'
 
 export async function GET() {

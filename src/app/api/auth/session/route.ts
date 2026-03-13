@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { getSession } from '@/lib/auth-server'
 import { getClientIpFromHeaders } from '@/lib/request-ip'
 import { calculateOvertimeHours, getISTStartOfDayUTC, roundHours } from '@/lib/time-utils'
 
-const ACTIVE_SESSION_TIMEOUT_MS = 20 * 60 * 1000
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
 const OFFICE_END_HOUR_IST = 17
 const OFFICE_END_MINUTE_IST = 30
@@ -154,19 +153,14 @@ export async function GET(request: Request) {
         if (session.role !== 'ADMIN') {
             const user = await prisma.user.findUnique({
                 where: { id: session.userId },
-                select: { activeSessionId: true, lastActivityAt: true }
+                select: { activeSessionId: true },
             })
 
             const activeToken = parseSessionLockToken(user?.activeSessionId)
             const isSessionIdMismatch = !user || user.activeSessionId !== session.sessionId
             const isIpMismatch = !!activeToken && !!session.ipAddress && session.ipAddress !== clientIp
-            const lastSeenAtMs = user?.lastActivityAt ? new Date(user.lastActivityAt).getTime() : 0
-            const lockTimestamp = activeToken?.ts ?? 0
-            const isStaleSession =
-                (lastSeenAtMs > 0 && now - lastSeenAtMs > ACTIVE_SESSION_TIMEOUT_MS) ||
-                (lockTimestamp > 0 && now - lockTimestamp > ACTIVE_SESSION_TIMEOUT_MS)
 
-            if (isSessionIdMismatch || isIpMismatch || isStaleSession) {
+            if (isSessionIdMismatch || isIpMismatch) {
                 // Another session is active, or user not found
                 const response = NextResponse.json(
                     { error: 'Session invalidated by another login' },
@@ -184,6 +178,7 @@ export async function GET(request: Request) {
                 name: session.name,
                 email: session.email,
                 role: session.role,
+                designation: session.designation ?? null,
             },
         })
     } catch (error) {

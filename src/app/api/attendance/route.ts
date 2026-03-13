@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { getSession } from '@/lib/auth-server'
+import { isHrLike } from '@/lib/auth'
 import { markAttendanceSchema } from '@/lib/validations'
 import { calculateOvertimeHours, getISTStartOfDayUTC, roundHours } from '@/lib/time-utils'
 
@@ -92,6 +93,8 @@ export async function GET(request: NextRequest) {
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
+        const hrLike = isHrLike(session.role, session.designation)
+        const effectiveRole = hrLike ? 'HR' : session.role
 
         await autoCheckoutMissedSessions(new Date())
 
@@ -104,7 +107,7 @@ export async function GET(request: NextRequest) {
         const where: Record<string, unknown> = {}
 
         // Employees and other individual roles can only see their own attendance
-        if (['EMPLOYEE', 'INTERN', 'TEAM_COORDINATOR', 'PA'].includes(session.role)) {
+        if (['EMPLOYEE', 'INTERN', 'TEAM_COORDINATOR', 'PA'].includes(effectiveRole)) {
             where.userId = session.userId
         } else if (userId) {
             where.userId = userId
@@ -146,7 +149,7 @@ export async function GET(request: NextRequest) {
         })
 
         let summary: { presentToday: number; absentToday: number } | undefined
-        if (session.role === 'ADMIN' || session.role === 'HR') {
+        if (session.role === 'ADMIN' || hrLike) {
             const today = getISTStartOfDayUTC()
             const workforceWhere = {
                 status: 'ACTIVE' as const,
