@@ -72,6 +72,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
+        const hrLike = isHrLike(session.role, session.designation)
+        const canManage = canManageEmployees(session.role) || hrLike
 
         const { id } = await params
 
