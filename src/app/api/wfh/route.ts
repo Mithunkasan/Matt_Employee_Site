@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { getSession } from '@/lib/auth-server'
+import { isHrLike } from '@/lib/auth'
 import { createWfhSchema } from '@/lib/validations'
 
 const COMPANY_TIMEZONE = 'Asia/Kolkata'
@@ -44,8 +45,10 @@ export async function GET(request: NextRequest) {
 
         const where: Record<string, unknown> = {}
 
+        const hrLike = isHrLike(session.role, session.designation)
+
         // Visibility restriction: Only respective person can see own requests, only Admin can see all
-        if (session.role === 'HR') {
+        if (hrLike) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 

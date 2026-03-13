@@ -29,6 +29,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, Search, Filter, Clock, AlertCircle, CheckCircle2, LayoutGrid, List, Kanban, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { isHrLike } from '@/lib/auth'
 
 interface Project {
     id: string
@@ -62,6 +63,7 @@ interface User {
 
 export default function ProjectsPage() {
     const { user } = useAuth()
+    const isHrUser = isHrLike(user?.role ?? 'EMPLOYEE', user?.designation ?? null)
     const [projects, setProjects] = useState<Project[]>([])
     const [employees, setEmployees] = useState<User[]>([])
     const [loading, setLoading] = useState(true)
@@ -85,7 +87,7 @@ export default function ProjectsPage() {
         githubLink: '',
     })
 
-    const canCreateProjects = user?.role === 'ADMIN' || user?.role === 'HR' || user?.role === 'BA' || user?.role === 'PA'
+    const canCreateProjects = user?.role === 'ADMIN' || isHrUser || user?.role === 'BA' || user?.role === 'PA'
     const canUpdateProjects = user?.role === 'ADMIN' || user?.role === 'BA' || user?.role === 'PA' || user?.role === 'MANAGER' || user?.role === 'TEAM_LEADER'
     const isAdmin = user?.role === 'ADMIN'
 

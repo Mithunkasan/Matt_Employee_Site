@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession, canCreateProjects } from '@/lib/auth'
+import { getSession } from '@/lib/auth-server'
+import { canCreateProjects } from '@/lib/auth'
 import { createProjectSchema } from '@/lib/validations'
 
 // GET all projects

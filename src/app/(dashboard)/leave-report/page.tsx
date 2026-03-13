@@ -19,6 +19,7 @@ import {
 import { FileDown, Download, Calendar as CalendarIcon, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/auth-context'
+import { isHrLike } from '@/lib/auth'
 
 interface LeaveReportUser {
     id: string
@@ -36,6 +37,7 @@ interface LeaveReportUser {
 
 export default function LeaveReportPage() {
     const { user } = useAuth()
+    const isHrUser = isHrLike(user?.role ?? 'EMPLOYEE', user?.designation ?? null)
     const [reportData, setReportData] = useState<LeaveReportUser[]>([])
     const [loading, setLoading] = useState(true)
     const [reportType, setReportType] = useState<'monthly' | 'weekly'>('monthly')
@@ -50,7 +52,7 @@ export default function LeaveReportPage() {
     }
     const [selectedDate, setSelectedDate] = useState(currentMonth)
 
-    const canView = user?.role === 'ADMIN' || user?.role === 'HR'
+    const canView = user?.role === 'ADMIN' || isHrUser
 
     useEffect(() => {
         if (canView) {

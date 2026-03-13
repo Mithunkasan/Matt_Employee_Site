@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { decrypt } from '@/lib/auth'
+import { decrypt } from '@/lib/auth-server'
 import { getClientIpFromHeaders } from '@/lib/request-ip'
 
 // Routes that don't require authentication

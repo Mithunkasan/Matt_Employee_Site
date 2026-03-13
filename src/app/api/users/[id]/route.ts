@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import prisma from '@/lib/prisma'
-import { getSession, canManageEmployees } from '@/lib/auth'
+import { getSession } from '@/lib/auth-server'
+import { canManageEmployees, isHrLike } from '@/lib/auth'
 import { updateUserSchema } from '@/lib/validations'
 
 interface Params {
@@ -15,6 +16,8 @@ export async function GET(request: NextRequest, { params }: Params) {
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
+        const hrLike = isHrLike(session.role, session.designation)
+        const canManage = canManageEmployees(session.role) || hrLike
 
         const { id } = await params
 
@@ -92,7 +95,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         }
 
         // Users can update their own profile, Admin/HR can update others
-        if (session.userId !== id && !canManageEmployees(session.role)) {
+        if (session.userId !== id && !canManage) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
@@ -111,7 +114,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         // Role change restrictions
         if (updateData.role) {
             // HR can only assign certain roles (cannot assign ADMIN)
-            if (session.role === 'HR' && updateData.role === 'ADMIN') {
+            if (hrLike && updateData.role === 'ADMIN') {
                 return NextResponse.json(
                     { error: 'HR cannot assign the Admin role' },
                     { status: 403 }
@@ -119,13 +122,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
             }
 
             // Non-admin, non-HR users cannot change roles at all
-            if (session.role !== 'ADMIN' && session.role !== 'HR') {
+            if (!canManage) {
                 delete updateData.role
             }
         }
 
         // Only Admin/HR can change status and organizational details
-        if (!canManageEmployees(session.role)) {
+        if (!canManage) {
             delete updateData.status
             delete updateData.department
             delete updateData.designation
@@ -171,9 +174,10 @@ export async function DELETE(request: NextRequest, { params }: Params) {
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
+        const hrLike = isHrLike(session.role, session.designation)
 
         // Only Admin and HR can delete users
-        if (session.role !== 'ADMIN' && session.role !== 'HR') {
+        if (session.role !== 'ADMIN' && !hrLike) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 

@@ -43,6 +43,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { getInitials, getRoleColor, getStatusColor, formatDate } from '@/lib/utils'
+import { isHrLike } from '@/lib/auth'
 import { toast } from 'sonner'
 
 interface Employee {
@@ -65,6 +66,8 @@ interface Employee {
 
 export default function EmployeesPage() {
     const { user } = useAuth()
+    const isHrUser = isHrLike(user?.role ?? 'EMPLOYEE', user?.designation ?? null)
+    const isAdminUser = user?.role === 'ADMIN'
     const [employees, setEmployees] = useState<Employee[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
@@ -89,7 +92,7 @@ export default function EmployeesPage() {
         managerId: '',
     })
 
-    const canManageEmployees = user?.role === 'ADMIN' || user?.role === 'HR'
+    const canManageEmployees = isAdminUser || isHrUser
 
     useEffect(() => {
         fetchEmployees()
@@ -113,7 +116,7 @@ export default function EmployeesPage() {
         setEditingEmployee(null)
         // Set default role based on user's role
         let defaultRole = 'BA'
-        if (user?.role === 'ADMIN' || user?.role === 'HR') defaultRole = 'EMPLOYEE'
+        if (isAdminUser || isHrUser) defaultRole = 'EMPLOYEE'
 
         setFormData({
             name: '',
@@ -190,7 +193,7 @@ export default function EmployeesPage() {
     }
 
     const handleDelete = async (employee: Employee) => {
-        if (user?.role !== 'ADMIN' && user?.role !== 'HR') {
+        if (!isAdminUser && !isHrUser) {
             toast.error('Only administrators or HR can delete users')
             return
         }
@@ -493,7 +496,7 @@ export default function EmployeesPage() {
                                                                 <DropdownMenuItem onClick={() => handleToggleStatus(employee)}>
                                                                     {employee.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                                                                 </DropdownMenuItem>
-                                                                {(user?.role === 'ADMIN' || user?.role === 'HR') && (
+                                                                {(isAdminUser || isHrUser) && (
                                                                     <DropdownMenuItem
                                                                         onClick={() => handleDelete(employee)}
                                                                         className="text-red-500 focus:text-red-500"
@@ -527,7 +530,7 @@ export default function EmployeesPage() {
                             </DialogTitle>
                             <DialogDescription>
                                 {editingEmployee ? 'Update employee details' :
-                                    user?.role === 'HR' ? 'Register a new Manager' :
+                                    isHrUser ? 'Register a new Manager' :
                                         user?.role === 'MANAGER' ? 'Register a new Team Leader' :
                                             user?.role === 'TEAM_LEADER' ? 'Register a new Employee' :
                                                 'Register a new team member'
@@ -669,7 +672,7 @@ export default function EmployeesPage() {
                                             if (value === 'Manager') role = 'MANAGER'
                                             else if (value === 'Team Leader') role = 'TEAM_LEADER'
                                             else if (value === 'Team Coordinator') role = 'TEAM_COORDINATOR'
-                                            else if (value === 'HR') role = 'HR'
+                                            else if (value === 'HR') role = formData.role === 'INTERN' ? 'INTERN' : 'HR'
                                             else if (value === 'Business Associate') role = 'BA'
                                             else if (value === 'Intern') role = 'INTERN'
                                             else role = formData.role === 'INTERN' ? 'INTERN' : 'EMPLOYEE'

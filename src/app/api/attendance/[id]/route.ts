@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession, canViewAllAttendance } from '@/lib/auth'
+import { getSession } from '@/lib/auth-server'
+import { canViewAllAttendance } from '@/lib/auth'
 import { updateAttendanceSchema } from '@/lib/validations'
 
 interface Params {

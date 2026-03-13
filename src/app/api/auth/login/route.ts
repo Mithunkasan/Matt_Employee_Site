@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import prisma from '@/lib/prisma'
-import { createSession } from '@/lib/auth'
+import { createSession } from '@/lib/auth-server'
 import { loginSchema } from '@/lib/validations'
 import { getClientIpFromHeaders } from '@/lib/request-ip'
 import { calculateOvertimeHours, getISTOvertimeThresholdUTC, roundHours } from '@/lib/time-utils'
 
-const ACTIVE_SESSION_TIMEOUT_MS = 20 * 60 * 1000
+const ACTIVE_SESSION_TIMEOUT_MS = 30 * 60 * 1000
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
 const OFFICE_START_HOUR_IST = 8
 const OFFICE_END_HOUR_IST = 17
@@ -300,6 +300,7 @@ export async function POST(request: NextRequest) {
         // Create session ID for single session enforcement
         const sessionId = Math.random().toString(36).substring(2, 15)
         const lockToken = buildSessionLockToken(clientIp, sessionId, now)
+        const sessionRole = user.role === 'INTERN' && user.designation === 'HR' ? 'HR' : user.role
 
         // Update user's active session state in database
         await prisma.user.update({
@@ -315,7 +316,8 @@ export async function POST(request: NextRequest) {
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role,
+            role: sessionRole,
+            designation: user.designation,
             sessionId: lockToken,
             ipAddress: clientIp,
         })
@@ -474,7 +476,8 @@ export async function POST(request: NextRequest) {
                 id: user.id,
                 name: user.name,
                 email: user.email,
-                role: user.role,
+                role: sessionRole,
+                designation: user.designation,
                 isOvertimeLogin: isOvertime,
                 isSundayLogin,
             },

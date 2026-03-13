@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { toast } from 'sonner'
 import { useAuth } from '@/context/auth-context'
 
 const IDLE_TIMEOUT = 10 * 60 * 1000 // 10 minutes
@@ -10,13 +11,22 @@ const REPEATED_KEY_MIN_INTERVAL_MS = 80
 const REPEATED_KEY_MAX_INTERVAL_MS = 400 // very short interval spam
 const UPDATE_THROTTLE_MS = 60 * 1000 // 1 minute
 const SESSION_CHECK_INTERVAL_MS = 60 * 1000 // 1 minute
+const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000 // keep session alive without logging out
 
 export function ActivityTracker() {
     const { user } = useAuth()
     const idleTimerRef = useRef<NodeJS.Timeout | null>(null)
+    const heartbeatTimerRef = useRef<NodeJS.Timeout | null>(null)
     const hiddenRef = useRef<boolean>(false)
     const suspiciousTriggeredRef = useRef<boolean>(false)
     const keyPressRef = useRef<{ [key: string]: number }>({})
+    const idleDetectionEnabledRef = useRef<boolean>(false)
+    const idleDetectorAbortRef = useRef<AbortController | null>(null)
+    const autoCheckoutRef = useRef<{ pending: boolean; reason: 'idle' | 'long_press' | 'repeated_key' | null }>({
+        pending: false,
+        reason: null,
+    })
+    const lastActivityRef = useRef<number>(Date.now())
 
     // Repeated fixed-interval key press detection
     const repeatedKeyTrackerRef = useRef<{
@@ -33,11 +43,26 @@ export function ActivityTracker() {
 
     const lastUpdateRef = useRef<number>(0)
 
+    const notifyAutoCheckout = () => {
+        if (!autoCheckoutRef.current.pending) return
+
+        const reason = autoCheckoutRef.current.reason
+        const message =
+            reason === 'idle'
+                ? 'You were checked out due to 10 minutes of inactivity. Please check in again to continue.'
+                : 'You were checked out due to unusual keyboard activity. Please check in again to continue.'
+
+        toast.warning(message, { duration: 6000 })
+        autoCheckoutRef.current = { pending: false, reason: null }
+    }
+
     const updateActivity = async (payload: { isIdle: boolean; stuckKey: boolean; eventType: string }) => {
         if (!user) return
 
         const now = Date.now()
-        if (!payload.stuckKey && !payload.isIdle && (now - lastUpdateRef.current < UPDATE_THROTTLE_MS)) {
+        lastActivityRef.current = now
+
+        if (!payload.stuckKey && !payload.isIdle && now - lastUpdateRef.current < UPDATE_THROTTLE_MS) {
             return { success: true, checkedOut: false }
         }
 
@@ -60,7 +85,8 @@ export function ActivityTracker() {
             if (suspiciousTriggeredRef.current) return
             suspiciousTriggeredRef.current = true
         }
-        await updateActivity({
+
+        const result = await updateActivity({
             isIdle: reason === 'idle',
             stuckKey: reason !== 'idle',
             eventType:
@@ -71,12 +97,17 @@ export function ActivityTracker() {
                         : 'repeated_key_pattern',
         })
 
+        if (result?.checkedOut) {
+            autoCheckoutRef.current = { pending: true, reason }
+        }
+
         if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
         // Auto-checkout should not force logout.
         // Employee can manually check in again later.
     }
 
     const armIdleTimer = () => {
+        if (idleDetectionEnabledRef.current) return
         if (hiddenRef.current) return
         if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
 
@@ -87,6 +118,8 @@ export function ActivityTracker() {
 
     const markActive = () => {
         if (hiddenRef.current || !user) return
+        notifyAutoCheckout()
+
         if (suspiciousTriggeredRef.current) {
             suspiciousTriggeredRef.current = false
         }
@@ -144,6 +177,60 @@ export function ActivityTracker() {
     useEffect(() => {
         if (!user) return
 
+        const startHeartbeat = () => {
+            if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current)
+            heartbeatTimerRef.current = setInterval(() => {
+                if (hiddenRef.current || autoCheckoutRef.current.pending) return
+                void updateActivity({ isIdle: false, stuckKey: false, eventType: 'heartbeat' })
+            }, HEARTBEAT_INTERVAL_MS)
+        }
+
+        const startIdleDetector = async () => {
+            if (typeof window === 'undefined') return
+            const IdleDetectorImpl = (window as any).IdleDetector
+            if (!IdleDetectorImpl || typeof IdleDetectorImpl.requestPermission !== 'function') return
+
+            let permission: string
+            try {
+                permission = await IdleDetectorImpl.requestPermission()
+            } catch (error) {
+                // Some browsers require a user gesture; fall back quietly.
+                idleDetectionEnabledRef.current = false
+                return
+            }
+
+            if (permission !== 'granted') return
+
+            try {
+                const controller = new AbortController()
+                idleDetectorAbortRef.current = controller
+                const detector = new IdleDetectorImpl()
+
+                detector.addEventListener(
+                    'change',
+                    () => {
+                        if (detector.userState === 'idle' || detector.screenState === 'locked') {
+                            void triggerAutoCheckout('idle')
+                        } else {
+                            notifyAutoCheckout()
+                            markActive()
+                        }
+                    },
+                    { signal: controller.signal }
+                )
+
+                await detector.start({
+                    threshold: IDLE_TIMEOUT,
+                    signal: controller.signal,
+                })
+
+                idleDetectionEnabledRef.current = true
+            } catch (error) {
+                console.warn('IdleDetector start failed, falling back to event timers.', error)
+                idleDetectionEnabledRef.current = false
+            }
+        }
+
         const sessionCheckTimer = setInterval(async () => {
             try {
                 const res = await fetch('/api/auth/session', { cache: 'no-store' })
@@ -174,7 +261,7 @@ export function ActivityTracker() {
         }
 
         const handleWindowBlur = () => {
-            if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+            if (!idleDetectionEnabledRef.current && idleTimerRef.current) clearTimeout(idleTimerRef.current)
         }
 
         const handleWindowFocus = () => {
@@ -198,6 +285,8 @@ export function ActivityTracker() {
             void updateActivity({ isIdle: false, stuckKey: false, eventType: 'session_start' })
             armIdleTimer()
         }
+        startHeartbeat()
+        void startIdleDetector()
 
         return () => {
             window.removeEventListener('mousemove', handleActivity)
@@ -210,6 +299,8 @@ export function ActivityTracker() {
             window.removeEventListener('focus', handleWindowFocus)
             document.removeEventListener('visibilitychange', handleVisibilityChange)
             if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+            if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current)
+            if (idleDetectorAbortRef.current) idleDetectorAbortRef.current.abort()
             clearInterval(sessionCheckTimer)
         }
     }, [user])

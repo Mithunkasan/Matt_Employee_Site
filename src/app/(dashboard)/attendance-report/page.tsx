@@ -28,6 +28,7 @@ import { toast } from 'sonner'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { cn } from '@/lib/utils'
+import { isHrLike } from '@/lib/auth'
 
 interface Session {
     checkIn: string
@@ -56,6 +57,7 @@ interface EmployeeReport {
 
 export default function AttendanceReportPage() {
     const { user } = useAuth()
+    const isHrUser = isHrLike(user?.role ?? 'EMPLOYEE', user?.designation ?? null)
     const [loading, setLoading] = useState(true)
     const [reportData, setReportData] = useState<EmployeeReport[]>([])
     const [daysInReport, setDaysInReport] = useState(30)
@@ -81,7 +83,7 @@ export default function AttendanceReportPage() {
     const [empSummaryOpen, setEmpSummaryOpen] = useState(false)
     const [selectedEmpSummary, setSelectedEmpSummary] = useState<EmployeeReport | null>(null)
 
-    const canView = user?.role === 'ADMIN' || user?.role === 'HR'
+    const canView = user?.role === 'ADMIN' || isHrUser
 
     useEffect(() => {
         if (canView) {
