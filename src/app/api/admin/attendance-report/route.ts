@@ -105,9 +105,17 @@ export async function GET(request: NextRequest) {
                 }
             })
 
-            // Overwrite with attendance if exists (attendance takes precedence)
+            // Overwrite with attendance if exists (present wins over leave, but approved leave shouldn't be replaced by an absent record)
             userAttendances.forEach(a => {
                 const day = new Date(a.date).getDate()
+                const existing = dailyData[day]
+                const isLeaveDay = existing?.status === 'LEAVE'
+
+                // If a leave exists and the attendance status is ABSENT, keep the leave marking
+                if (isLeaveDay && a.status === 'ABSENT') {
+                    return
+                }
+
                 dailyData[day] = {
                     id: a.id,
                     status: a.status,

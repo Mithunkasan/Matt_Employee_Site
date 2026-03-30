@@ -84,6 +84,8 @@ export default function AttendanceReportPage() {
     const [selectedEmpSummary, setSelectedEmpSummary] = useState<EmployeeReport | null>(null)
 
     const canView = user?.role === 'ADMIN' || isHrUser
+    const getLeaveCount = (emp: EmployeeReport) =>
+        emp.leaveDays ?? Object.values(emp.dailyData || {}).filter((d: any) => d.status === 'LEAVE').length
 
     useEffect(() => {
         if (canView) {
@@ -151,7 +153,7 @@ export default function AttendanceReportPage() {
                     else csv += `${dayData.totalHours.toFixed(2)},`
                 }
             }
-            csv += `${emp.totalMonthlyHours.toFixed(2)},${emp.presentDays},${emp.leaveDays || 0}\n`
+            csv += `${emp.totalMonthlyHours.toFixed(2)},${emp.presentDays},${getLeaveCount(emp)}\n`
         })
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -188,6 +190,7 @@ export default function AttendanceReportPage() {
         }
 
         const body = reportData.map(emp => {
+            const leaveCount = getLeaveCount(emp)
             const row = [emp.name, emp.department || '-']
             if (reportType === 'monthly') {
                 for (let i = 1; i <= daysInReport; i++) {
@@ -207,7 +210,7 @@ export default function AttendanceReportPage() {
                     else row.push(dayData.totalHours.toFixed(1))
                 }
             }
-            row.push(emp.totalMonthlyHours.toFixed(1), emp.presentDays.toString(), (emp.leaveDays || 0).toString())
+            row.push(emp.totalMonthlyHours.toFixed(1), emp.presentDays.toString(), leaveCount.toString())
             return row
         })
 
@@ -399,7 +402,7 @@ export default function AttendanceReportPage() {
                                             )}
                                             <TableCell className="text-center font-bold border-l">{emp.totalMonthlyHours.toFixed(1)}h</TableCell>
                                             <TableCell className="text-center font-bold text-emerald-600">{emp.presentDays}</TableCell>
-                                            <TableCell className="text-center font-bold text-orange-500">{emp.leaveDays || 0}</TableCell>
+                                            <TableCell className="text-center font-bold text-orange-500">{getLeaveCount(emp)}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -443,7 +446,7 @@ export default function AttendanceReportPage() {
                                 <p className="text-xs text-slate-500 uppercase font-bold mt-1">Present Days</p>
                             </Card>
                             <Card className="p-4 text-center bg-orange-50/50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-800/50">
-                                <b className="text-xl text-orange-600 dark:text-orange-400">{selectedEmpSummary.leaveDays || 0}</b>
+                                <b className="text-xl text-orange-600 dark:text-orange-400">{selectedEmpSummary ? getLeaveCount(selectedEmpSummary) : 0}</b>
                                 <p className="text-xs text-slate-500 uppercase font-bold mt-1">Leave Days</p>
                             </Card>
                         </div>
