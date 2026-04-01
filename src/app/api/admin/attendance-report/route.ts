@@ -1,6 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getSession } from '@/lib/auth-server'
+import { getISTStartOfDayUTC } from '@/lib/time-utils'
+
+function createUTCDate(year: number, monthIndex: number, day: number) {
+    return new Date(Date.UTC(year, monthIndex, day, 0, 0, 0, 0))
+}
+
+function addUTCDays(date: Date, days: number) {
+    const next = new Date(date)
+    next.setUTCDate(next.getUTCDate() + days)
+    return next
+}
+
+function toDateKey(date: Date) {
+    return date.toISOString().split('T')[0]
+}
+
+function getDateKeysInRange(startDate: Date, endDate: Date) {
+    const dateKeys: string[] = []
+    let current = new Date(startDate)
+
+    while (current.getTime() <= endDate.getTime()) {
+        dateKeys.push(toDateKey(current))
+        current = addUTCDays(current, 1)
+    }
+
+    return dateKeys
+}
+
+function getOverlappingDateKeys(startDate: Date, endDate: Date, leaveStart: Date, leaveEnd: Date) {
+    const normalizedLeaveStart = createUTCDate(
+        leaveStart.getUTCFullYear(),
+        leaveStart.getUTCMonth(),
+        leaveStart.getUTCDate()
+    )
+    const normalizedLeaveEnd = createUTCDate(
+        leaveEnd.getUTCFullYear(),
+        leaveEnd.getUTCMonth(),
+        leaveEnd.getUTCDate()
+    )
+
+    const overlapStart = normalizedLeaveStart.getTime() > startDate.getTime() ? normalizedLeaveStart : startDate
+    const overlapEnd = normalizedLeaveEnd.getTime() < endDate.getTime() ? normalizedLeaveEnd : endDate
+
+    if (overlapStart.getTime() > overlapEnd.getTime()) {
+        return []
+    }
+
+    return getDateKeysInRange(overlapStart, overlapEnd)
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -22,16 +71,17 @@ export async function GET(request: NextRequest) {
 
         if (type === 'monthly') {
             const [year, monthNum] = dateStr.split('-').map(Number)
-            startDate = new Date(year, monthNum - 1, 1)
-            endDate = new Date(year, monthNum, 0, 23, 59, 59, 999)
+            startDate = createUTCDate(year, monthNum - 1, 1)
+            endDate = createUTCDate(year, monthNum, 0)
         } else {
             // Weekly
-            startDate = new Date(dateStr)
-            startDate.setHours(0, 0, 0, 0)
-            endDate = new Date(startDate)
-            endDate.setDate(startDate.getDate() + 6)
-            endDate.setHours(23, 59, 59, 999)
+            const [year, monthNum, dayNum] = dateStr.split('-').map(Number)
+            startDate = createUTCDate(year, monthNum - 1, dayNum)
+            endDate = addUTCDays(startDate, 6)
         }
+
+        const reportDates = getDateKeysInRange(startDate, endDate)
+        const todayKey = toDateKey(getISTStartOfDayUTC(new Date()))
 
         // Fetch all users
         const users = await prisma.user.findMany({
@@ -81,69 +131,92 @@ export async function GET(request: NextRequest) {
             const userAttendances = attendances.filter(a => a.userId === user.id)
             const userLeaves = leaves.filter(l => l.userId === user.id)
 
-            // Map daily status
-            const dailyData: Record<number, any> = {}
+            const dailyData: Record<string, any> = {}
+            const attendanceByDate = new Map(
+                userAttendances.map(attendance => [toDateKey(new Date(attendance.date)), attendance])
+            )
+            const leaveByDate = new Map<string, { reason: string }>()
 
-            // Fill leaves first
             userLeaves.forEach(leave => {
-                const lStart = new Date(leave.startDate)
-                const lEnd = new Date(leave.endDate)
+                const leaveDateKeys = getOverlappingDateKeys(
+                    startDate,
+                    endDate,
+                    new Date(leave.startDate),
+                    new Date(leave.endDate)
+                )
 
-                // Iterate through each day of the interval
-                const current = new Date(startDate)
-                while (current <= endDate) {
-                    if (current >= lStart && current <= lEnd) {
-                        const day = current.getDate()
-                        dailyData[day] = {
-                            status: 'LEAVE',
-                            totalHours: 0,
-                            sessions: [],
-                            reason: leave.reason
-                        }
-                    }
-                    current.setDate(current.getDate() + 1)
-                }
+                leaveDateKeys.forEach(dateKey => {
+                    leaveByDate.set(dateKey, { reason: leave.reason })
+                })
             })
 
-            // Overwrite with attendance if exists (present wins over leave, but approved leave shouldn't be replaced by an absent record)
-            userAttendances.forEach(a => {
-                const day = new Date(a.date).getDate()
-                const existing = dailyData[day]
-                const isLeaveDay = existing?.status === 'LEAVE'
+            reportDates.forEach(dateKey => {
+                const attendance = attendanceByDate.get(dateKey)
+                const leave = leaveByDate.get(dateKey)
+                const isFutureDate = dateKey > todayKey
 
-                // If a leave exists and the attendance status is ABSENT, keep the leave marking
-                if (isLeaveDay && a.status === 'ABSENT') {
+                if (attendance) {
+                    const shouldKeepLeave = leave && attendance.status === 'ABSENT'
+                    const effectiveStatus = shouldKeepLeave ? 'LEAVE' : attendance.status
+
+                    if (!(isFutureDate && effectiveStatus === 'ABSENT')) {
+                        dailyData[dateKey] = {
+                            id: attendance.id,
+                            status: effectiveStatus,
+                            totalHours: attendance.totalHours,
+                            sessions: attendance.sessions.map(s => ({
+                                checkIn: s.checkIn,
+                                checkOut: s.checkOut,
+                                hoursWorked: s.hoursWorked,
+                            })),
+                            reason: shouldKeepLeave ? leave?.reason : undefined,
+                        }
+                    }
+
                     return
                 }
 
-                dailyData[day] = {
-                    id: a.id,
-                    status: a.status,
-                    totalHours: a.totalHours,
-                    sessions: a.sessions.map(s => ({
-                        checkIn: s.checkIn,
-                        checkOut: s.checkOut,
-                        hoursWorked: s.hoursWorked,
-                    })),
+                if (leave) {
+                    dailyData[dateKey] = {
+                        status: 'LEAVE',
+                        totalHours: 0,
+                        sessions: [],
+                        reason: leave.reason,
+                    }
+                    return
+                }
+
+                if (!isFutureDate) {
+                    dailyData[dateKey] = {
+                        status: 'ABSENT',
+                        totalHours: 0,
+                        sessions: [],
+                    }
                 }
             })
+
+            const dailyEntries = Object.values(dailyData)
+            const presentDays = dailyEntries.filter((entry: any) => entry.status === 'PRESENT' || entry.status === 'WFH').length
+            const absentDays = dailyEntries.filter((entry: any) => entry.status === 'ABSENT').length
+            const leaveDays = dailyEntries.filter((entry: any) => entry.status === 'LEAVE').length
 
             return {
                 ...user,
                 dailyData,
                 totalMonthlyHours: userAttendances.reduce((sum, a) => sum + (a.totalHours || 0), 0),
-                presentDays: userAttendances.filter(a => a.status === 'PRESENT').length,
-                leaveDays: Object.values(dailyData).filter((d: any) => d.status === 'LEAVE').length,
+                presentDays,
+                absentDays,
+                leaveDays,
+                absentOrLeaveDays: absentDays + leaveDays,
             }
         })
-
-        const daysInInterval = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
         return NextResponse.json({
             reportData,
             date: dateStr,
             type,
-            daysInReport: daysInInterval,
+            daysInReport: reportDates.length,
+            reportDates,
         })
     } catch (error) {
         console.error('Attendance report API error:', error)

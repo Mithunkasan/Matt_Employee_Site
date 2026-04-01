@@ -99,6 +99,23 @@ export async function POST(request: NextRequest) {
         const requestDate = new Date(`${getIstDateKey(now)}T00:00:00Z`)
 
         if (user.role !== 'ADMIN') {
+            const pendingLeave = await prisma.leaveRequest.findFirst({
+                where: {
+                    userId: user.id,
+                    status: 'PENDING',
+                    startDate: { lte: requestDate },
+                    endDate: { gte: requestDate },
+                },
+                select: { id: true },
+            })
+
+            if (pendingLeave) {
+                return NextResponse.json(
+                    { error: 'Your leave request for today is pending admin approval. You cannot log in until it is reviewed.' },
+                    { status: 403 }
+                )
+            }
+
             const approvedLeave = await prisma.leaveRequest.findFirst({
                 where: {
                     userId: user.id,

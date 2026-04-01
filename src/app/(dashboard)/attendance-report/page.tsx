@@ -21,9 +21,8 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogDescription,
 } from '@/components/ui/dialog'
-import { FileDown, FileText, Download, Clock, Calendar as CalendarIcon, User as UserIcon, Filter, Info } from 'lucide-react'
+import { FileDown, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -37,10 +36,11 @@ interface Session {
 }
 
 interface DailyAttendance {
-    id: string
+    id?: string
     status: string
     totalHours: number
     sessions: Session[]
+    reason?: string
 }
 
 interface EmployeeReport {
@@ -49,10 +49,46 @@ interface EmployeeReport {
     email: string
     department?: string
     role: string
-    dailyData: Record<number, DailyAttendance>
+    dailyData: Record<string, DailyAttendance>
     totalMonthlyHours: number
     presentDays: number
+    absentDays: number
     leaveDays: number
+    absentOrLeaveDays: number
+}
+
+function pad2(value: number) {
+    return value.toString().padStart(2, '0')
+}
+
+function formatDateInputValue(date: Date) {
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+}
+
+function formatMonthInputValue(date: Date) {
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`
+}
+
+function formatHeaderLabel(dateKey: string, reportType: 'monthly' | 'weekly') {
+    const date = new Date(`${dateKey}T00:00:00`)
+    return reportType === 'monthly'
+        ? date.getDate().toString()
+        : `${date.toLocaleDateString('default', { weekday: 'short' })} ${date.getDate()}`
+}
+
+function formatLongDate(dateKey: string) {
+    return new Date(`${dateKey}T00:00:00`).toLocaleDateString('default', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    })
+}
+
+function getDisplayStatus(attendance?: DailyAttendance) {
+    if (!attendance) return ''
+    if (attendance.status === 'LEAVE') return 'L'
+    if (attendance.status === 'ABSENT') return 'A'
+    return 'P'
 }
 
 export default function AttendanceReportPage() {
@@ -60,20 +96,20 @@ export default function AttendanceReportPage() {
     const isHrUser = isHrLike(user?.role ?? 'EMPLOYEE', user?.designation ?? null)
     const [loading, setLoading] = useState(true)
     const [reportData, setReportData] = useState<EmployeeReport[]>([])
-    const [daysInReport, setDaysInReport] = useState(30)
+    const [reportDates, setReportDates] = useState<string[]>([])
     const [reportType, setReportType] = useState<'monthly' | 'weekly'>('monthly')
 
-    const currentMonth = new Date().toISOString().slice(0, 7)
-    const getStartOfWeek = (d: Date) => {
-        const day = d.getDay()
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-        const monday = new Date(d.setDate(diff))
-        return monday.toISOString().slice(0, 10)
+    const currentMonth = formatMonthInputValue(new Date())
+    const getStartOfWeek = (inputDate: Date) => {
+        const date = new Date(inputDate)
+        const day = date.getDay()
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1)
+        date.setDate(diff)
+        return formatDateInputValue(date)
     }
 
     const [selectedDate, setSelectedDate] = useState(currentMonth)
 
-    // Detail Modal State
     const [detailOpen, setDetailOpen] = useState(false)
     const [selectedDayDetail, setSelectedDayDetail] = useState<{
         employeeName: string
@@ -84,14 +120,15 @@ export default function AttendanceReportPage() {
     const [selectedEmpSummary, setSelectedEmpSummary] = useState<EmployeeReport | null>(null)
 
     const canView = user?.role === 'ADMIN' || isHrUser
-    const getLeaveCount = (emp: EmployeeReport) =>
-        emp.leaveDays ?? Object.values(emp.dailyData || {}).filter((d: any) => d.status === 'LEAVE').length
+    const getAbsentLeaveCount = (emp: EmployeeReport) =>
+        emp.absentOrLeaveDays
+        ?? Object.values(emp.dailyData || {}).filter((d: any) => d.status === 'ABSENT' || d.status === 'LEAVE').length
 
     useEffect(() => {
         if (canView) {
             fetchReport()
         }
-    }, [selectedDate, reportType])
+    }, [canView, selectedDate, reportType])
 
     const fetchReport = async () => {
         try {
@@ -99,12 +136,12 @@ export default function AttendanceReportPage() {
             const res = await fetch(`/api/admin/attendance-report?type=${reportType}&date=${selectedDate}`)
             if (res.ok) {
                 const data = await res.json()
-                setReportData(data.reportData)
-                setDaysInReport(data.daysInReport)
+                setReportData(data.reportData || [])
+                setReportDates(data.reportDates || [])
             } else {
                 toast.error('Failed to load report')
             }
-        } catch (error) {
+        } catch {
             toast.error('Network error')
         } finally {
             setLoading(false)
@@ -112,48 +149,19 @@ export default function AttendanceReportPage() {
     }
 
     const downloadCSV = () => {
-        // Header
         let csv = `Attendance Report (${reportType}) - ${selectedDate}\n`
         csv += 'Employee,Department,'
+        reportDates.forEach((dateKey) => {
+            csv += `${formatHeaderLabel(dateKey, reportType)},`
+        })
+        csv += 'Total Hours,Present,A/L\n'
 
-        const startDay = reportType === 'monthly' ? 1 : 1
-        const endDay = reportType === 'monthly' ? daysInReport : 7
-
-        if (reportType === 'monthly') {
-            for (let i = 1; i <= daysInReport; i++) csv += `${i},`
-        } else {
-            const startDate = new Date(selectedDate)
-            for (let i = 0; i < 7; i++) {
-                const d = new Date(startDate)
-                d.setDate(startDate.getDate() + i)
-                csv += `${d.toLocaleDateString('default', { weekday: 'short' })}(${d.getDate()}),`
-            }
-        }
-
-        csv += 'Total Hours,Present,Leaves\n'
-
-        // Rows
         reportData.forEach(emp => {
             csv += `"${emp.name}","${emp.department || '-'}",`
-            if (reportType === 'monthly') {
-                for (let i = 1; i <= daysInReport; i++) {
-                    const dayData = emp.dailyData[i]
-                    if (!dayData) csv += 'A,'
-                    else if (dayData.status === 'LEAVE') csv += 'L,'
-                    else csv += `${dayData.totalHours.toFixed(2)},`
-                }
-            } else {
-                const startDate = new Date(selectedDate)
-                for (let i = 0; i < 7; i++) {
-                    const d = new Date(startDate)
-                    d.setDate(startDate.getDate() + i)
-                    const dayData = emp.dailyData[d.getDate()]
-                    if (!dayData) csv += 'A,'
-                    else if (dayData.status === 'LEAVE') csv += 'L,'
-                    else csv += `${dayData.totalHours.toFixed(2)},`
-                }
-            }
-            csv += `${emp.totalMonthlyHours.toFixed(2)},${emp.presentDays},${getLeaveCount(emp)}\n`
+            reportDates.forEach((dateKey) => {
+                csv += `${getDisplayStatus(emp.dailyData[dateKey])},`
+            })
+            csv += `${emp.totalMonthlyHours.toFixed(2)},${emp.presentDays},${getAbsentLeaveCount(emp)}\n`
         })
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -176,47 +184,31 @@ export default function AttendanceReportPage() {
         doc.setFontSize(11)
         doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22)
 
-        let headers: string[][] = []
-        if (reportType === 'monthly') {
-            headers = [['Employee', 'Department', ...Array.from({ length: daysInReport }, (_, i) => (i + 1).toString()), 'Total', 'P', 'L']]
-        } else {
-            const startDate = new Date(selectedDate)
-            const dayLabels = Array.from({ length: 7 }, (_, i) => {
-                const d = new Date(startDate)
-                d.setDate(startDate.getDate() + i)
-                return `${d.toLocaleDateString('default', { weekday: 'short' })} ${d.getDate()}`
-            })
-            headers = [['Employee', 'Department', ...dayLabels, 'Total', 'P', 'L']]
-        }
+        const headers = [[
+            'Employee',
+            'Department',
+            ...reportDates.map((dateKey) => formatHeaderLabel(dateKey, reportType)),
+            'Total',
+            'P',
+            'A/L',
+        ]]
 
         const body = reportData.map(emp => {
-            const leaveCount = getLeaveCount(emp)
             const row = [emp.name, emp.department || '-']
-            if (reportType === 'monthly') {
-                for (let i = 1; i <= daysInReport; i++) {
-                    const dayData = emp.dailyData[i]
-                    if (!dayData) row.push('A')
-                    else if (dayData.status === 'LEAVE') row.push('L')
-                    else row.push(dayData.totalHours.toFixed(1))
-                }
-            } else {
-                const startDate = new Date(selectedDate)
-                for (let i = 0; i < 7; i++) {
-                    const d = new Date(startDate)
-                    d.setDate(startDate.getDate() + i)
-                    const dayData = emp.dailyData[d.getDate()]
-                    if (!dayData) row.push('A')
-                    else if (dayData.status === 'LEAVE') row.push('L')
-                    else row.push(dayData.totalHours.toFixed(1))
-                }
-            }
-            row.push(emp.totalMonthlyHours.toFixed(1), emp.presentDays.toString(), leaveCount.toString())
+            reportDates.forEach((dateKey) => {
+                row.push(getDisplayStatus(emp.dailyData[dateKey]))
+            })
+            row.push(
+                emp.totalMonthlyHours.toFixed(1),
+                emp.presentDays.toString(),
+                getAbsentLeaveCount(emp).toString()
+            )
             return row
         })
 
         autoTable(doc, {
             head: headers,
-            body: body,
+            body,
             startY: 30,
             styles: { fontSize: 8, cellPadding: 1 },
             headStyles: { fillColor: [79, 70, 229] },
@@ -225,24 +217,11 @@ export default function AttendanceReportPage() {
         doc.save(`Attendance_Report_${reportType}_${selectedDate}.pdf`)
     }
 
-    const handleCellClick = (empName: string, day: number, attendance: DailyAttendance) => {
-        let dateStr = ''
-        if (reportType === 'monthly') {
-            const [year, month] = selectedDate.split('-')
-            dateStr = `${day} ${new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'long' })} ${year}`
-        } else {
-            const startDate = new Date(selectedDate)
-            const d = new Date(startDate)
-            // Need to find the exact date for the clicked index
-            // Actually 'day' is the date within the month from dailyData.
-            // This works for both as long as we show the correct month name.
-            dateStr = `${day} ${new Date(startDate).toLocaleString('default', { month: 'long', year: 'numeric' })}`
-        }
-
+    const handleCellClick = (empName: string, dateKey: string, attendance: DailyAttendance) => {
         setSelectedDayDetail({
             employeeName: empName,
-            date: dateStr,
-            attendance
+            date: formatLongDate(dateKey),
+            attendance,
         })
         setDetailOpen(true)
     }
@@ -271,14 +250,20 @@ export default function AttendanceReportPage() {
                                     <Button
                                         size="sm"
                                         variant={reportType === 'monthly' ? 'default' : 'outline'}
-                                        onClick={() => { setReportType('monthly'); setSelectedDate(currentMonth); }}
+                                        onClick={() => {
+                                            setReportType('monthly')
+                                            setSelectedDate(currentMonth)
+                                        }}
                                     >
                                         Monthly
                                     </Button>
                                     <Button
                                         size="sm"
                                         variant={reportType === 'weekly' ? 'default' : 'outline'}
-                                        onClick={() => { setReportType('weekly'); setSelectedDate(getStartOfWeek(new Date())); }}
+                                        onClick={() => {
+                                            setReportType('weekly')
+                                            setSelectedDate(getStartOfWeek(new Date()))
+                                        }}
                                     >
                                         Weekly
                                     </Button>
@@ -293,10 +278,9 @@ export default function AttendanceReportPage() {
                                     className="block px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm outline-none focus:ring-2 focus:ring-violet-500"
                                 />
                             </div>
-                            {/* Legend */}
                             <div className="hidden lg:flex items-center gap-4 ml-6 pl-6 border-l border-slate-200 dark:border-slate-700">
                                 <div className="flex items-center gap-2">
-                                    <div className="h-4 w-4 rounded bg-slate-100 dark:bg-slate-900 border flex items-center justify-center text-[10px] text-slate-300 font-bold">A</div>
+                                    <div className="h-4 w-4 rounded bg-slate-100 dark:bg-slate-900 border flex items-center justify-center text-[10px] text-slate-600 dark:text-slate-300 font-bold">A</div>
                                     <span className="text-xs text-slate-500">Absent</span>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -304,8 +288,8 @@ export default function AttendanceReportPage() {
                                     <span className="text-xs text-slate-500">Leave</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <div className="h-4 w-4 rounded bg-white dark:bg-slate-800 border flex items-center justify-center text-[10px] text-slate-900 dark:text-white font-bold">8.5</div>
-                                    <span className="text-xs text-slate-500">Hours</span>
+                                    <div className="h-4 w-4 rounded bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 flex items-center justify-center text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">P</div>
+                                    <span className="text-xs text-slate-500">Present</span>
                                 </div>
                             </div>
                         </div>
@@ -331,25 +315,26 @@ export default function AttendanceReportPage() {
                                     <TableRow className="bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-900/50">
                                         <TableHead className="sticky left-0 top-0 z-30 bg-slate-50 dark:bg-slate-900 min-w-[180px] border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Employee</TableHead>
                                         <TableHead className="min-w-[100px] bg-slate-50 dark:bg-slate-900">Dept</TableHead>
-                                        {reportType === 'monthly' ? (
-                                            Array.from({ length: daysInReport }, (_, i) => (
-                                                <TableHead key={i} className="text-center min-w-[40px] text-[10px] bg-slate-50 dark:bg-slate-900">{i + 1}</TableHead>
-                                            ))
-                                        ) : (
-                                            Array.from({ length: 7 }, (_, i) => {
-                                                const d = new Date(selectedDate)
-                                                d.setDate(d.getDate() + i)
-                                                return <TableHead key={i} className="text-center min-w-[60px] text-[10px] bg-slate-50 dark:bg-slate-900">{d.toLocaleDateString('default', { weekday: 'short' })} {d.getDate()}</TableHead>
-                                            })
-                                        )}
+                                        {reportDates.map((dateKey) => (
+                                            <TableHead
+                                                key={dateKey}
+                                                className={`text-center ${reportType === 'monthly' ? 'min-w-[40px]' : 'min-w-[60px]'} text-[10px] bg-slate-50 dark:bg-slate-900`}
+                                            >
+                                                {formatHeaderLabel(dateKey, reportType)}
+                                            </TableHead>
+                                        ))}
                                         <TableHead className="text-center min-w-[80px] border-l bg-slate-50 dark:bg-slate-900">Total</TableHead>
                                         <TableHead className="text-center min-w-[60px] bg-slate-50 dark:bg-slate-900">P</TableHead>
-                                        <TableHead className="text-center min-w-[60px] bg-slate-50 dark:bg-slate-900">L</TableHead>
+                                        <TableHead className="text-center min-w-[60px] bg-slate-50 dark:bg-slate-900">A/L</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {loading ? (
-                                        <TableRow><TableCell colSpan={daysInReport + 4} className="text-center py-20"><PageLoader /></TableCell></TableRow>
+                                        <TableRow>
+                                            <TableCell colSpan={reportDates.length + 5} className="text-center py-20">
+                                                <PageLoader />
+                                            </TableCell>
+                                        </TableRow>
                                     ) : reportData.map((emp) => (
                                         <TableRow key={emp.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20">
                                             <TableCell
@@ -359,50 +344,32 @@ export default function AttendanceReportPage() {
                                                 {emp.name}
                                             </TableCell>
                                             <TableCell className="text-xs text-slate-500">{emp.department || '-'}</TableCell>
-                                            {reportType === 'monthly' ? (
-                                                Array.from({ length: daysInReport }, (_, i) => {
-                                                    const day = i + 1
-                                                    const dayData = emp.dailyData[day]
-                                                    return (
-                                                        <TableCell key={i} className={`text-center p-0 border-r ${dayData ? 'cursor-pointer hover:bg-violet-50' : ''}`} onClick={() => dayData && dayData.status !== 'LEAVE' && handleCellClick(emp.name, day, dayData)}>
-                                                            <div className={cn(
-                                                                "py-3 px-1 text-[11px]",
-                                                                dayData?.status === 'LEAVE' && "bg-orange-50 dark:bg-orange-900/10 text-orange-600 dark:text-orange-400"
-                                                            )}>
-                                                                {dayData ? (
-                                                                    dayData.status === 'LEAVE' ? <b>L</b> : <b>{dayData.totalHours.toFixed(1)}</b>
-                                                                ) : (
-                                                                    <span className="text-slate-200">A</span>
-                                                                )}
-                                                            </div>
-                                                        </TableCell>
-                                                    )
-                                                })
-                                            ) : (
-                                                Array.from({ length: 7 }, (_, i) => {
-                                                    const d = new Date(selectedDate)
-                                                    d.setDate(d.getDate() + i)
-                                                    const day = d.getDate()
-                                                    const dayData = emp.dailyData[day]
-                                                    return (
-                                                        <TableCell key={i} className={`text-center p-0 border-r ${dayData ? 'cursor-pointer hover:bg-violet-50' : ''}`} onClick={() => dayData && dayData.status !== 'LEAVE' && handleCellClick(emp.name, day, dayData)}>
-                                                            <div className={cn(
-                                                                "py-3 px-1 text-[11px]",
-                                                                dayData?.status === 'LEAVE' && "bg-orange-50 dark:bg-orange-900/10 text-orange-600 dark:text-orange-400"
-                                                            )}>
-                                                                {dayData ? (
-                                                                    dayData.status === 'LEAVE' ? <b>L</b> : <b>{dayData.totalHours.toFixed(1)}</b>
-                                                                ) : (
-                                                                    <span className="text-slate-200">A</span>
-                                                                )}
-                                                            </div>
-                                                        </TableCell>
-                                                    )
-                                                })
-                                            )}
+                                            {reportDates.map((dateKey) => {
+                                                const dayData = emp.dailyData[dateKey]
+                                                const displayStatus = getDisplayStatus(dayData)
+                                                const canOpenDetail = !!dayData && dayData.sessions.length > 0
+
+                                                return (
+                                                    <TableCell
+                                                        key={dateKey}
+                                                        className={`text-center p-0 border-r ${canOpenDetail ? 'cursor-pointer hover:bg-violet-50' : ''}`}
+                                                        onClick={() => canOpenDetail && handleCellClick(emp.name, dateKey, dayData)}
+                                                    >
+                                                        <div className={cn(
+                                                            "py-3 px-1 text-[11px] font-bold",
+                                                            dayData?.status === 'PRESENT' && "bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 dark:text-emerald-400",
+                                                            dayData?.status === 'WFH' && "bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 dark:text-emerald-400",
+                                                            dayData?.status === 'ABSENT' && "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300",
+                                                            dayData?.status === 'LEAVE' && "bg-orange-50 dark:bg-orange-900/10 text-orange-600 dark:text-orange-400"
+                                                        )}>
+                                                            {displayStatus}
+                                                        </div>
+                                                    </TableCell>
+                                                )
+                                            })}
                                             <TableCell className="text-center font-bold border-l">{emp.totalMonthlyHours.toFixed(1)}h</TableCell>
                                             <TableCell className="text-center font-bold text-emerald-600">{emp.presentDays}</TableCell>
-                                            <TableCell className="text-center font-bold text-orange-500">{getLeaveCount(emp)}</TableCell>
+                                            <TableCell className="text-center font-bold text-orange-500">{getAbsentLeaveCount(emp)}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -413,7 +380,6 @@ export default function AttendanceReportPage() {
                 </Card>
             </div>
 
-            {/* Reuse existing Dialogs */}
             <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
                 <DialogContent>
                     <DialogHeader>
@@ -434,7 +400,9 @@ export default function AttendanceReportPage() {
 
             <Dialog open={empSummaryOpen} onOpenChange={setEmpSummaryOpen}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Summary: {selectedEmpSummary?.name}</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>Summary: {selectedEmpSummary?.name}</DialogTitle>
+                    </DialogHeader>
                     {selectedEmpSummary && (
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <Card className="p-4 text-center bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-800/50">
@@ -446,8 +414,8 @@ export default function AttendanceReportPage() {
                                 <p className="text-xs text-slate-500 uppercase font-bold mt-1">Present Days</p>
                             </Card>
                             <Card className="p-4 text-center bg-orange-50/50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-800/50">
-                                <b className="text-xl text-orange-600 dark:text-orange-400">{selectedEmpSummary ? getLeaveCount(selectedEmpSummary) : 0}</b>
-                                <p className="text-xs text-slate-500 uppercase font-bold mt-1">Leave Days</p>
+                                <b className="text-xl text-orange-600 dark:text-orange-400">{getAbsentLeaveCount(selectedEmpSummary)}</b>
+                                <p className="text-xs text-slate-500 uppercase font-bold mt-1">Absent / Leave Days</p>
                             </Card>
                         </div>
                     )}
